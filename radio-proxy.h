@@ -1,14 +1,19 @@
-#ifndef __RADIO_PROXY_H__
-#define __RADIO_PROXY_H__
+#ifndef _RADIO_PROXY_
+#define _RADIO_PROXY_
 
 #include <iostream>
 
-class Radio {
+class RadioClient {
 private:
-    std::string host;
+    char *host;
+    char  *resource;
+    char *port;
+    bool metadata = false;
+    unsigned timeout = 5;
 
 public:
-    Radio(int argc, char *argv[]);
+    RadioClient(int argc, char *argv[]);
+    void printClient();
 };
 
-#endif // __RADIO_PROXY_H__
+#endif // _RADIO_PROXY_

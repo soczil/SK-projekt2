@@ -6,9 +6,9 @@ LFLAGS = -Wall
 
 all: $(TARGETS)
 
-radio-proxy.o: radio-proxy.h
+radio-proxy.o: radio-proxy.h err.h
 
-radio-proxy: radio-proxy.o
+radio-proxy: radio-proxy.o err.o
 
 .PHONY: clean
 
