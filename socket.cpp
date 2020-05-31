@@ -7,7 +7,7 @@
 #include <iostream> // TODO: remove
 
 Socket::Socket() {
-    memset(&(this->addrHints), 0, sizeof(struct addrinfo));
+    std::memset(&(this->addrHints), 0, sizeof(struct addrinfo));
     this->addrHints.ai_family = AF_INET;
     this->addrHints.ai_socktype = SOCK_STREAM;
     this->addrHints.ai_protocol = IPPROTO_TCP;

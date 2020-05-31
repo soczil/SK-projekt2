@@ -80,11 +80,13 @@ void RadioProxy::sendRequest() {
 }
 
 void RadioProxy::readResponse() {
+    char buffer[8192];
     ssize_t recvLength = 0;
     char *line = nullptr;
     size_t size = 0;
-    int metaint = 0, sum = 0, difference = 0, metaLength = 0;
+    int metaint = 0, sum = 0, difference = 0, metaLength = 0, metaPosition = 0;
     std::cmatch cm;
+    int sock = socket.getSockNumber();
 
     const std::regex correctStatus("(?:ICY 200 OK\r\n)|(?:HTTP\\/1\\.[0-1] "
                                    "200 OK\r\n)|(?:HTTP 200 OK\r\n)");
@@ -104,27 +106,56 @@ void RadioProxy::readResponse() {
             && (strcmp(line, "\r\n") != 0)) {
         if (std::regex_match(line, cm, metaintRegex)) {
             metaint = std::stoi(cm[1].str());
+            std::cout << "METAINT" << metaint << std::endl;
         }
     }
 
-    while ((recvLength = getline(&line, &size, fd)) != -1) {
-        if (sum + recvLength <= metaint) {
-            sum += recvLength;
-        } else {
-            // std::cout << "sum1: " << sum << std::endl;
-            difference = metaint - sum;
-            metaLength = ((int) *(line + difference)) * 16;
-            std::cout << metaLength << std::endl;
-            if (metaLength > 0) {
-                std::cout << (line + difference + 1) << std::endl;
-            }
-            sum = (int)recvLength - difference - metaLength - 1;
-            // std::cout << "recvLength: " << recvLength << std::endl;
-            // std::cout << "sum: " << sum << std::endl;
-            //  std::cout << "difference: " << difference << std::endl;
+    int allData = 0;
+    int dataLeft = metaint;
+    int metadataLeft = 0;
+    bool readMetadata = false;
+    while (true) {
+        if (allData == 0) {
+            memset(buffer, 0, sizeof(buffer));
+            recvLength = read(sock, buffer, sizeof(buffer) - 1);
+            allData = recvLength;
         }
-        //std::cout << "JOL" << std::endl;
+
+        if (!readMetadata) {
+            if (dataLeft >= allData) {
+                if (dataLeft == allData) {
+                    readMetadata = true;
+                }
+                dataLeft -= allData;
+                allData = 0;
+            } else {
+                allData -= dataLeft;
+                dataLeft = 0;
+                readMetadata = true;
+            }
+        }
     }
+
+//    while ((recvLength = getline(&line, &size, fd)) != -1) {
+//        if (sum + recvLength <= metaint) {
+//            sum += recvLength;
+//        } else {
+//            do {
+//                //std::cout << "sum1: " << sum << std::endl;
+//                difference = metaint - sum;
+//                metaLength = ((int) *(line + difference)) * 16;
+//                std::cout << metaLength << std::endl;
+//                if (metaLength > 0) {
+//                    std::cout << (line + difference + 1) << std::endl;
+//                }
+//                sum = (int)recvLength - difference - metaLength - 1;
+//                //std::cout << "recvLength: " << recvLength << std::endl;
+//                //std::cout << "sum: " << sum << std::endl;
+//                //std::cout << "difference: " << difference << std::endl;
+//            } while (sum > metaint);
+//        }
+//        //std::cout << "JOL" << std::endl;
+//    }
 
     free(line);
     if (fclose(fd) < 0) {
