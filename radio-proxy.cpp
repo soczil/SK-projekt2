@@ -4,7 +4,7 @@
 #include "radio-proxy.h"
 #include "err.h"
 
-RadioClient::RadioClient(int argc, char *argv[]) {
+RadioProxy::RadioProxy(int argc, char *argv[]) {
     int opt;
     bool h, r, p;
 
@@ -49,7 +49,7 @@ RadioClient::RadioClient(int argc, char *argv[]) {
     }
 }
 
-void RadioClient::printClient() {
+void RadioProxy::printRadioProxy() {
     std::cout << "host: " << this->host << std::endl;
     std::cout << "resource: " << this->resource << std::endl;
     std::cout << "port: " << this->port << std::endl;
@@ -57,9 +57,22 @@ void RadioClient::printClient() {
     std::cout << "timeout: " << this->timeout << std::endl;
 }
 
+void RadioProxy::connect() {
+    socket.openSocket(host, port);
+}
+
+void RadioProxy::disconnect() {
+    socket.closeSocket();
+}
+
+void RadioProxy::sendRequest() {
+
+}
+
 int main(int argc, char *argv[]) {
     std::cout << "JOL" << std::endl;
-
-    RadioClient radioClient(argc, argv);
-    radioClient.printClient();
+    RadioProxy radioClient(argc, argv);
+    radioClient.printRadioProxy();
+    radioClient.connect();
+    radioClient.disconnect();
 }

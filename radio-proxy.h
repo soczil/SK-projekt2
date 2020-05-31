@@ -1,19 +1,23 @@
 #ifndef _RADIO_PROXY_
 #define _RADIO_PROXY_
 
-#include <iostream>
+#include "socket.h"
 
-class RadioClient {
+class RadioProxy {
 private:
     char *host;
     char  *resource;
     char *port;
     bool metadata = false;
     unsigned timeout = 5;
+    Socket socket;
 
 public:
-    RadioClient(int argc, char *argv[]);
-    void printClient();
+    RadioProxy(int, char **);
+    void printRadioProxy();
+    void connect();
+    void disconnect();
+    void sendRequest();
 };
 
 #endif // _RADIO_PROXY_

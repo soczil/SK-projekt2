@@ -8,7 +8,9 @@ all: $(TARGETS)
 
 radio-proxy.o: radio-proxy.h err.h
 
-radio-proxy: radio-proxy.o err.o
+socket.o: socket.h err.h
+
+radio-proxy: radio-proxy.o socket.o err.o
 
 .PHONY: clean
 
