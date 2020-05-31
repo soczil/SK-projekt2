@@ -84,7 +84,7 @@ void RadioProxy::readResponse() {
     ssize_t recvLength = 0;
     char *line = nullptr;
     size_t size = 0;
-    int metaint = 0, sum = 0, difference = 0, metaLength = 0, metaPosition = 0;
+    int metaint = 0, sum = 0, difference = 0, metaLength = -1, position = 0;
     std::cmatch cm;
     int sock = socket.getSockNumber();
 
@@ -114,10 +114,17 @@ void RadioProxy::readResponse() {
     int dataLeft = metaint;
     int metadataLeft = 0;
     bool readMetadata = false;
+
     while (true) {
         if (allData == 0) {
             memset(buffer, 0, sizeof(buffer));
             recvLength = read(sock, buffer, sizeof(buffer) - 1);
+            if (recvLength == 0) {
+                break;
+            } else if (recvLength < 0) {
+                syserr("read");
+            }
+            std::cout << buffer << std::endl;
             allData = recvLength;
         }
 
@@ -132,6 +139,36 @@ void RadioProxy::readResponse() {
                 allData -= dataLeft;
                 dataLeft = 0;
                 readMetadata = true;
+            }
+        } else {
+            position = (int)recvLength - allData;
+            if (metaLength == -1) {
+                metaLength = (int) *(buffer + position);
+                std::cout << "META LENGTH: " << metaLength << std::endl;
+                metadataLeft = metaLength;
+                allData--;
+                if (allData == 0) {
+                    continue;
+                }
+                position++;
+            }
+
+            if (metadataLeft >= allData) {
+                if (metadataLeft == allData) {
+                    readMetadata = false;
+                    metaLength = -1;
+                }
+                metadataLeft -= allData;
+                allData = 0;
+                std::cout << (buffer + position) << std::endl;
+            } else {
+                char sign = *(buffer +position + metadataLeft);
+                *(buffer +position + metadataLeft) = '\0';
+                std::cout << (buffer + position) << std::endl;
+                *(buffer +position + metadataLeft) = sign;
+                allData -= metadataLeft;
+                metadataLeft = 0;
+                readMetadata = false;
             }
         }
     }
