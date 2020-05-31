@@ -1,6 +1,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <cstring>
+#include <sstream>
 #include "radio-proxy.h"
 #include "err.h"
 
@@ -66,7 +67,19 @@ void RadioProxy::disconnect() {
 }
 
 void RadioProxy::sendRequest() {
+    std::ostringstream request;
 
+    request << "GET " << resource << " HTTP/1.0\r\n";
+    request << "Host: " << host << "\r\n";
+    request << "User-Agent: Casty\r\n";
+    request << "Icy-MetaData: " << (metadata ? "1" : "0") << "\r\n\r\n";
+
+    std::cout << request.str().c_str();
+    socket.writeToSocket(request.str());
+}
+
+void RadioProxy::readResponse() {
+    socket.readFromSocket();
 }
 
 int main(int argc, char *argv[]) {
@@ -74,5 +87,7 @@ int main(int argc, char *argv[]) {
     RadioProxy radioClient(argc, argv);
     radioClient.printRadioProxy();
     radioClient.connect();
+    radioClient.sendRequest();
+    radioClient.readResponse();
     radioClient.disconnect();
 }

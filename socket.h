@@ -2,6 +2,7 @@
 #define _SOCKET_
 
 #include <netdb.h>
+#include <string>
 
 class Socket {
 private:
@@ -13,6 +14,8 @@ public:
     Socket();
     void openSocket(char *, char *);
     void closeSocket();
+    void writeToSocket(std::string);
+    void readFromSocket();
 };
 
 #endif // _SOCKET_

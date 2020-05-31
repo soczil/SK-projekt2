@@ -18,6 +18,7 @@ public:
     void connect();
     void disconnect();
     void sendRequest();
+    void readResponse();
 };
 
 #endif // _RADIO_PROXY_

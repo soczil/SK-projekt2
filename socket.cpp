@@ -4,6 +4,8 @@
 #include "socket.h"
 #include "err.h"
 
+#include <iostream> // TODO: remove
+
 Socket::Socket() {
     memset(&(this->addrHints), 0, sizeof(struct addrinfo));
     this->addrHints.ai_family = AF_INET;
@@ -36,5 +38,27 @@ void Socket::openSocket(char *host, char *port) {
 void Socket::closeSocket() {
     if (close(sock) < 0) {
         syserr("close");
+    }
+}
+
+void Socket::writeToSocket(std::string buffer) {
+    ssize_t sendLength = buffer.length();
+
+    if (write(sock, buffer.c_str(), sendLength) != sendLength) {
+        syserr("partial / failed write");
+    }
+}
+
+void Socket::readFromSocket() {
+    ssize_t recvLength = 0;
+    char buffer[1000];
+
+    memset(buffer, 0, sizeof(buffer));
+    while ((recvLength = read(sock, buffer, sizeof(buffer) - 1)) > 0) {
+        printf("%s", buffer);
+    }
+
+    if (recvLength < 0) {
+        syserr("read");
     }
 }
