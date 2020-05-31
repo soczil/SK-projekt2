@@ -49,16 +49,6 @@ void Socket::writeToSocket(std::string buffer) {
     }
 }
 
-void Socket::readFromSocket() {
-    ssize_t recvLength = 0;
-    char buffer[1000];
-
-    memset(buffer, 0, sizeof(buffer));
-    while ((recvLength = read(sock, buffer, sizeof(buffer) - 1)) > 0) {
-        printf("%s", buffer);
-    }
-
-    if (recvLength < 0) {
-        syserr("read");
-    }
+int Socket::getSockNumber() {
+    return sock;
 }

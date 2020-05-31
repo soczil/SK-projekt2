@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <sstream>
+#include <regex>
 #include "radio-proxy.h"
 #include "err.h"
 
@@ -79,7 +80,56 @@ void RadioProxy::sendRequest() {
 }
 
 void RadioProxy::readResponse() {
-    socket.readFromSocket();
+    ssize_t recvLength = 0;
+    char *line = nullptr;
+    size_t size = 0;
+    int metaint = 0, sum = 0, difference = 0, metaLength = 0;
+    std::cmatch cm;
+
+    const std::regex correctStatus("(?:ICY 200 OK\r\n)|(?:HTTP\\/1\\.[0-1] "
+                                   "200 OK\r\n)|(?:HTTP 200 OK\r\n)");
+    const std::regex metaintRegex("(?:icy-metaint:([0-9]+)\r\n)",
+            std::regex_constants::icase);
+
+    FILE *fd = fdopen(socket.getSockNumber(), "r");
+
+    recvLength = getline(&line, &size, fd);
+    if (!std::regex_match(line, correctStatus)) {
+        std::cout << line << std::endl;
+        free(line);
+        return;
+    }
+
+    while (((recvLength = getline(&line, &size, fd)) != -1)
+            && (strcmp(line, "\r\n") != 0)) {
+        if (std::regex_match(line, cm, metaintRegex)) {
+            metaint = std::stoi(cm[1].str());
+        }
+    }
+
+    while ((recvLength = getline(&line, &size, fd)) != -1) {
+        if (sum + recvLength <= metaint) {
+            sum += recvLength;
+        } else {
+            // std::cout << "sum1: " << sum << std::endl;
+            difference = metaint - sum;
+            metaLength = ((int) *(line + difference)) * 16;
+            std::cout << metaLength << std::endl;
+            if (metaLength > 0) {
+                std::cout << (line + difference + 1) << std::endl;
+            }
+            sum = (int)recvLength - difference - metaLength - 1;
+            // std::cout << "recvLength: " << recvLength << std::endl;
+            // std::cout << "sum: " << sum << std::endl;
+            //  std::cout << "difference: " << difference << std::endl;
+        }
+        //std::cout << "JOL" << std::endl;
+    }
+
+    free(line);
+    if (fclose(fd) < 0) {
+        syserr("fclose");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -89,5 +139,5 @@ int main(int argc, char *argv[]) {
     radioClient.connect();
     radioClient.sendRequest();
     radioClient.readResponse();
-    radioClient.disconnect();
+    //radioClient.disconnect();
 }

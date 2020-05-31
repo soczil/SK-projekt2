@@ -1,7 +1,7 @@
 TARGETS = radio-proxy
 
 CC = g++
-CFLAGS = -Wall -Wextra -O2
+CFLAGS = -Wall -Wextra -O2 -g
 LFLAGS = -Wall
 
 all: $(TARGETS)
