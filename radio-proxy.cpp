@@ -75,156 +75,130 @@ void RadioProxy::sendRequest() {
     request << "User-Agent: Casty\r\n";
     request << "Icy-MetaData: " << (metadata ? "1" : "0") << "\r\n\r\n";
 
-    std::cout << request.str().c_str();
     socket.writeToSocket(request.str());
 }
 
-void RadioProxy::readResponse() {
-    char buffer[8192];
-    ssize_t recvLength = 0;
-    char *line = nullptr;
-    size_t size = 0;
-    int metaint = 0, sum = 0, difference = 0, metaLength = -1, position = 0;
-    std::cmatch cm;
-    int sock = socket.getSockNumber();
-
-    const std::regex correctStatus("(?:ICY 200 OK\r\n)|(?:HTTP\\/1\\.[0-1] "
-                                   "200 OK\r\n)|(?:HTTP 200 OK\r\n)");
-    const std::regex metaintRegex("(?:icy-metaint:([0-9]+)\r\n)",
-            std::regex_constants::icase);
-
-    FILE *fd = fdopen(socket.getSockNumber(), "r");
-
-    recvLength = getline(&line, &size, fd);
-    if (!std::regex_match(line, correctStatus)) {
-        std::cout << line << std::endl;
-        free(line);
-        return;
-    }
-
-    while (((recvLength = getline(&line, &size, fd)) != -1)
-            && (strcmp(line, "\r\n") != 0)) {
-        if (std::regex_match(line, cm, metaintRegex)) {
-            metaint = std::stoi(cm[1].str());
-            std::cout << "METAINT" << metaint << std::endl;
-        }
-        std::cout << line << std::endl;
-    }
-
-    int allData = 0;
-    int dataLeft = metaint;
-    int metadataLeft = 0;
-    bool readMetadata = false;
-
-    while (true) {
-        if (allData == 0) {
-            //memset(buffer, 0, sizeof(buffer));
-            //recvLength = read(sock, buffer, sizeof(buffer) - 1);
-            recvLength = getline(&line, &size, fd);
-            //std::cout << line << std::endl;
-            if (recvLength == 0) {
-                break;
-            } else if (recvLength < 0) {
-                syserr("read");
-            }
-            //std::cout << recvLength << std::endl;
-            allData = recvLength;
-        }
-
-        if (!readMetadata) {
-            if (dataLeft >= allData) {
-                if (dataLeft == allData) {
-                    readMetadata = true;
-                }
-                dataLeft -= allData;
-                allData = 0;
-            } else {
-                allData -= dataLeft;
-                dataLeft = 0;
-                readMetadata = true;
-            }
-        } else {
-            position = (int)recvLength - allData;
-            if (metaLength == -1) {
-                //std::cout << "ZNAK " << *(line + position) << std::endl;
-                //std::cout << line << std::endl;
-                metaLength = ((int) *(line + position)) * 16;
-                //std::cout << "META LENGTH: " << metaLength << std::endl;
-                metadataLeft = metaLength;
-                allData--;
-//                if (allData == 0) {
-//                    continue;
-//                }
-//                position++;
-//                std::cout << "ALL DATA: " << allData << std::endl;
-//                std::cout << "DATA LEFT: " << dataLeft << std::endl;
-//                std::cout << "METADATA READ: " << readMetadata << std::endl;
-//                std::cout << "position " << position << std::endl;
-                continue;
-            }
-
-            if (metadataLeft >= allData) {
-                if (metadataLeft == allData) {
-                    readMetadata = false;
-                    metaLength = -1;
-                    dataLeft = metaint;
-                }
-                metadataLeft -= allData;
-                allData = 0;
-                if (metaLength > 0) {
-                    std::cout << (line + position) << std::endl;
-                }
-            } else {
-                char sign = *(line + position + metadataLeft);
-                *(line + position + metadataLeft) = '\0';
-                if (metaLength > 0) {
-                    std::cout << (line + position) << std::endl;
-                }
-                *(line + position + metadataLeft) = sign;
-                allData -= metadataLeft;
-                metadataLeft = 0;
-                readMetadata = false;
-                metaLength = -1;
-                dataLeft = metaint;
-            }
-//            std::cout << "ALL DATA: " << allData << std::endl;
-//            std::cout << "DATA LEFT: " << dataLeft << std::endl;
-//            std::cout << "METADATA LEFT: " << metadataLeft << std::endl;
-//            std::cout << "METADATA READ: " << readMetadata << std::endl;
-        }
-//        std::cout << "ALL DATA: " << allData << std::endl;
-//        std::cout << "DATA LEFT: " << dataLeft << std::endl;
-//        std::cout << "METADATA READ: " << readMetadata << std::endl;
-    }
-
+//void RadioProxy::readWithoutMetadata(FILE *fd) {
+//    char *line = nullptr;
+//    size_t size = 0;
+//    ssize_t recvLength = 0;
+//
 //    while ((recvLength = getline(&line, &size, fd)) != -1) {
-//        if (sum + recvLength <= metaint) {
-//            sum += recvLength;
-//        } else {
-//            do {
-//                //std::cout << "sum1: " << sum << std::endl;
-//                difference = metaint - sum;
-//                metaLength = ((int) *(line + difference)) * 16;
-//                std::cout << metaLength << std::endl;
-//                if (metaLength > 0) {
-//                    std::cout << (line + difference + 1) << std::endl;
-//                }
-//                sum = (int)recvLength - difference - metaLength - 1;
-//                //std::cout << "recvLength: " << recvLength << std::endl;
-//                //std::cout << "sum: " << sum << std::endl;
-//                //std::cout << "difference: " << difference << std::endl;
-//            } while (sum > metaint);
-//        }
-//        //std::cout << "JOL" << std::endl;
+//        printf("%s", line);
 //    }
+//
+//    free(line);
+//}
+//
+//void RadioProxy::readResponse() {
+//    char buffer[8192];
+//    ssize_t recvLength = 0;
+//    char *line = nullptr;
+//    size_t size = 0;
+//    int metaint = 0, sum = 0, difference = 0, metaLength = -1, position = 0;
+//    std::cmatch cm;
+//    int sock = socket.getSockNumber();
+//
+//    const std::regex correctStatus("(?:ICY 200 OK\r\n)|(?:HTTP\\/1\\.[0-1] "
+//                                   "200 OK\r\n)|(?:HTTP 200 OK\r\n)");
+//    const std::regex metaintRegex("(?:icy-metaint:([0-9]+)\r\n)",
+//            std::regex_constants::icase);
+//
+//    FILE *fd = fdopen(socket.getSockNumber(), "r");
+//
+//    recvLength = getline(&line, &size, fd);
+//    if (!std::regex_match(line, correctStatus)) {
+//        std::cout << line << std::endl;
+//        free(line);
+//        return;
+//    }
+//
+//    while (((recvLength = getline(&line, &size, fd)) != -1)
+//            && (strcmp(line, "\r\n") != 0)) {
+//        if (std::regex_match(line, cm, metaintRegex)) {
+//            metaint = std::stoi(cm[1].str());
+//        }
+//    }
+//
+//    if (metaint == 0) {
+//        free(line);
+//        readWithoutMetadata(fd);
+//    }
+//
+//    int allData = 0;
+//    int dataLeft = metaint;
+//    int metadataLeft = 0;
+//    bool readMetadata = false;
+//
+//    while (true) {
+//        if (allData == 0) {
+//            recvLength = getline(&line, &size, fd);
+//            if (recvLength == -1) {
+//                break;
+//            }
+//            allData = recvLength;
+//        }
+//
+//        position = (int)recvLength - allData;
+//        if (!readMetadata) {
+//            if (dataLeft >= allData) {
+//                if (dataLeft == allData) {
+//                    readMetadata = true;
+//                }
+//                dataLeft -= allData;
+//                allData = 0;
+//                fprintf(stdout, "%s", line + position);
+//            } else {
+//                char sign = *(line + position + dataLeft);
+//                *(line + position + dataLeft) = '\0';
+//                fprintf(stdout, "%s", line + position);
+//                *(line + position + dataLeft) = sign;
+//                allData -= dataLeft;
+//                dataLeft = 0;
+//                readMetadata = true;
+//            }
+//        } else {
+//            if (metaLength == -1) {
+//                metaLength = ((int) *(line + position)) * 16;
+//                metadataLeft = metaLength;
+//                allData--;
+//                continue;
+//            }
+//
+//            if (metadataLeft >= allData) {
+//                if (metadataLeft == allData) {
+//                    readMetadata = false;
+//                    metaLength = -1;
+//                    dataLeft = metaint;
+//                }
+//                metadataLeft -= allData;
+//                allData = 0;
+//                if (metaLength > 0) {
+//                    std::cerr << (line + position) << std::endl;
+//                }
+//            } else {
+//                char sign = *(line + position + metadataLeft);
+//                *(line + position + metadataLeft) = '\0';
+//                if (metaLength > 0) {
+//                    std::cerr << (line + position) << std::endl;
+//                }
+//                *(line + position + metadataLeft) = sign;
+//                allData -= metadataLeft;
+//                metadataLeft = 0;
+//                readMetadata = false;
+//                metaLength = -1;
+//                dataLeft = metaint;
+//            }
+//        }
+//    }
+//
+//    free(line);
+//    if (fclose(fd) < 0) {
+//        syserr("fclose");
+//    }
+//}
 
-    free(line);
-    if (fclose(fd) < 0) {
-        syserr("fclose");
-    }
-}
-
-const int HEADER_SIZE = 8192;
+const int HEADER_SIZE = 100;
 
 void RadioProxy::checkHeader(char *header, int *metaInt) {
     const std::regex correctStatus("(?:ICY 200 OK\r)|(?:HTTP\\/1\\.[0-1] 200 OK\r)|(?:HTTP 200 OK\r)");
@@ -246,7 +220,7 @@ void RadioProxy::checkHeader(char *header, int *metaInt) {
     }
 }
 
-void RadioProxy::readResponse2() {
+void RadioProxy::readResponse() {
     int sock = socket.getSockNumber(), position = 0;
     char buffer[HEADER_SIZE + 1];
     char *headerBuffer = nullptr, *headerEnd = nullptr;
@@ -282,6 +256,17 @@ void RadioProxy::readResponse2() {
     free(headerBuffer);
     headerEnd += 4;
 
+    if ((metaInt != -1) && !metadata) {
+        fatal("server tries to send metadata");
+    } else if (metaInt == -1) {
+        // Print the rest of the buffer that contains message.
+        size_t size = 100 - (headerEnd - buffer);
+        write(1, buffer + (headerEnd - buffer), size);
+        //fprintf(stdout, "%s", buffer + (headerEnd - buffer));
+        readWithoutMetadata();
+        return;
+    }
+
     allData = recvLength - (headerEnd - buffer);
     dataLeft = metaInt;
     metadataLeft = 0;
@@ -305,9 +290,18 @@ void RadioProxy::readResponse2() {
                 if (dataLeft == allData) {
                     readMetadata = true;
                 }
+                write(1, buffer + position, allData);
                 dataLeft -= allData;
                 allData = 0;
+                //fprintf(stdout, "%s", buffer + position);
+                //std::cout << (buffer + position) << std::endl;
             } else {
+//                char sign = *(buffer + position + dataLeft);
+//                *(buffer + position + dataLeft) = '\0';
+//                fprintf(stdout, "%s", buffer + position);
+                write(1, buffer + position, dataLeft);
+                //std::cout << (buffer + position) << std::endl;
+                //*(buffer + position + dataLeft) = sign;
                 allData -= dataLeft;
                 dataLeft = 0;
                 readMetadata = true;
@@ -329,13 +323,15 @@ void RadioProxy::readResponse2() {
                 metadataLeft -= allData;
                 allData = 0;
                 if (metaLength > 0) {
-                    std::cout << (buffer + position) << std::endl;
+                    //std::cout << (buffer + position) << std::endl;
+                    fprintf(stderr, "%s\n", buffer + position);
                 }
             } else {
                 char sign = *(buffer + position + metadataLeft);
                 *(buffer + position + metadataLeft) = '\0';
                 if (metaLength > 0) {
-                    std::cout << (buffer + position) << std::endl;
+                    //std::cout << (buffer + position) << std::endl;
+                    fprintf(stderr, "%s\n", buffer + position);
                 }
                 *(buffer + position + metadataLeft) = sign;
                 allData -= metadataLeft;
@@ -348,12 +344,29 @@ void RadioProxy::readResponse2() {
     }
 }
 
+void RadioProxy::readWithoutMetadata() {
+    int sock = socket.getSockNumber();
+    char buffer[HEADER_SIZE];
+    ssize_t recvLength;
+
+    while (true) {
+        memset(buffer, 0, sizeof(buffer));
+        recvLength = read(sock, buffer, sizeof(buffer) - 1);
+        if (recvLength == 0) {
+            break;
+        } else if (recvLength < 0) {
+            syserr("read");
+        }
+        //fprintf(stdout, "%s", buffer);
+        write(1, buffer, recvLength);
+    }
+}
+
 int main(int argc, char *argv[]) {
-    std::cout << "JOL" << std::endl;
+    std::ios_base::sync_with_stdio(false);
     RadioProxy radioClient(argc, argv);
-    radioClient.printRadioProxy();
     radioClient.connect();
     radioClient.sendRequest();
-    radioClient.readResponse2();
+    radioClient.readResponse();
     radioClient.disconnect();
 }

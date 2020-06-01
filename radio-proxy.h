@@ -12,6 +12,9 @@ private:
     unsigned timeout = 5;
     Socket socket;
 
+    //void readWithoutMetadata(FILE *fd);
+    void readWithoutMetadata();
+
 public:
     RadioProxy(int, char **);
     void printRadioProxy();
@@ -20,7 +23,6 @@ public:
     void sendRequest();
 
     void readResponse();
-    void readResponse2();
     void checkHeader(char *, int *);
 };
 
