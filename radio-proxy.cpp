@@ -108,6 +108,7 @@ void RadioProxy::readResponse() {
             metaint = std::stoi(cm[1].str());
             std::cout << "METAINT" << metaint << std::endl;
         }
+        std::cout << line << std::endl;
     }
 
     int allData = 0;
@@ -117,14 +118,16 @@ void RadioProxy::readResponse() {
 
     while (true) {
         if (allData == 0) {
-            memset(buffer, 0, sizeof(buffer));
-            recvLength = read(sock, buffer, sizeof(buffer) - 1);
+            //memset(buffer, 0, sizeof(buffer));
+            //recvLength = read(sock, buffer, sizeof(buffer) - 1);
+            recvLength = getline(&line, &size, fd);
+            //std::cout << line << std::endl;
             if (recvLength == 0) {
                 break;
             } else if (recvLength < 0) {
                 syserr("read");
             }
-            std::cout << buffer << std::endl;
+            //std::cout << recvLength << std::endl;
             allData = recvLength;
         }
 
@@ -143,34 +146,55 @@ void RadioProxy::readResponse() {
         } else {
             position = (int)recvLength - allData;
             if (metaLength == -1) {
-                metaLength = (int) *(buffer + position);
-                std::cout << "META LENGTH: " << metaLength << std::endl;
+                //std::cout << "ZNAK " << *(line + position) << std::endl;
+                //std::cout << line << std::endl;
+                metaLength = ((int) *(line + position)) * 16;
+                //std::cout << "META LENGTH: " << metaLength << std::endl;
                 metadataLeft = metaLength;
                 allData--;
-                if (allData == 0) {
-                    continue;
-                }
-                position++;
+//                if (allData == 0) {
+//                    continue;
+//                }
+//                position++;
+//                std::cout << "ALL DATA: " << allData << std::endl;
+//                std::cout << "DATA LEFT: " << dataLeft << std::endl;
+//                std::cout << "METADATA READ: " << readMetadata << std::endl;
+//                std::cout << "position " << position << std::endl;
+                continue;
             }
 
             if (metadataLeft >= allData) {
                 if (metadataLeft == allData) {
                     readMetadata = false;
                     metaLength = -1;
+                    dataLeft = metaint;
                 }
                 metadataLeft -= allData;
                 allData = 0;
-                std::cout << (buffer + position) << std::endl;
+                if (metaLength > 0) {
+                    std::cout << (line + position) << std::endl;
+                }
             } else {
-                char sign = *(buffer +position + metadataLeft);
-                *(buffer +position + metadataLeft) = '\0';
-                std::cout << (buffer + position) << std::endl;
-                *(buffer +position + metadataLeft) = sign;
+                char sign = *(line + position + metadataLeft);
+                *(line + position + metadataLeft) = '\0';
+                if (metaLength > 0) {
+                    std::cout << (line + position) << std::endl;
+                }
+                *(line + position + metadataLeft) = sign;
                 allData -= metadataLeft;
                 metadataLeft = 0;
                 readMetadata = false;
+                metaLength = -1;
+                dataLeft = metaint;
             }
+//            std::cout << "ALL DATA: " << allData << std::endl;
+//            std::cout << "DATA LEFT: " << dataLeft << std::endl;
+//            std::cout << "METADATA LEFT: " << metadataLeft << std::endl;
+//            std::cout << "METADATA READ: " << readMetadata << std::endl;
         }
+//        std::cout << "ALL DATA: " << allData << std::endl;
+//        std::cout << "DATA LEFT: " << dataLeft << std::endl;
+//        std::cout << "METADATA READ: " << readMetadata << std::endl;
     }
 
 //    while ((recvLength = getline(&line, &size, fd)) != -1) {
