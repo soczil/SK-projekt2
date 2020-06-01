@@ -20,6 +20,8 @@ public:
     void sendRequest();
 
     void readResponse();
+    void readResponse2();
+    void checkHeader(char *, int *);
 };
 
 #endif // _RADIO_PROXY_
