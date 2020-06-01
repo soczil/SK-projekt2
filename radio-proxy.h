@@ -16,6 +16,7 @@ private:
     bool correctHeader(char *, int *);
     bool readHeader(char *, int *, std::pair<int, int>&);
     void readWithoutMetadata(char *, std::pair<int, int>&);
+    void readWithMetadata(char *, int, std::pair<int, int>&);
 
 public:
     RadioProxy(int, char **);

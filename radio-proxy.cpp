@@ -145,7 +145,13 @@ bool RadioProxy::readHeader(char *buffer, int *metaInt, std::pair<int, int>& con
 
 static void writeToStdout(char *buffer, size_t size) {
     if (write(1, buffer, size) != (ssize_t) size) {
-        syserr("partial / failed write");
+        syserr("partial / failed write to stdout");
+    }
+}
+
+static void writeToStderr(char *buffer, size_t size) {
+    if (write(2, buffer, size) != (ssize_t) size) {
+        syserr("partial / failed write to stderr");
     }
 }
 
@@ -167,6 +173,79 @@ void RadioProxy::readWithoutMetadata(char *buffer, std::pair<int, int>&
     }
 }
 
+void RadioProxy::readWithMetadata(char *buffer, int metaInt, std::pair<int,
+        int>& content) {
+    int sock = socket.getSockNumber();
+    int allData, dataLeft, metadataLeft = 0, metaLength = -1, position;
+    bool readMetadata = false;
+    ssize_t recvLength = 0;
+
+    allData = content.second;
+    dataLeft = metaInt;
+    position = content.first;
+    while (true) {
+        if (allData == 0) {
+            memset(buffer, 0, BUFFER_SIZE);
+            recvLength = read(sock, buffer, BUFFER_SIZE);
+            if (recvLength == 0) {
+                break;
+            } else if (recvLength < 0) {
+                syserr("read");
+            }
+            allData = recvLength;
+            position = 0;
+        }
+
+        if (!readMetadata) {
+            if (dataLeft >= allData) {
+                if (dataLeft == allData) {
+                    readMetadata = true;
+                }
+                writeToStdout(buffer + position, allData);
+                dataLeft -= allData;
+                allData = 0;
+            } else {
+                writeToStdout(buffer + position, dataLeft);
+                position += dataLeft;
+                allData -= dataLeft;
+                dataLeft = 0;
+                readMetadata = true;
+            }
+        } else {
+            if (metaLength == -1) {
+                metaLength = ((int) *(buffer + position)) * 16;
+                std::cerr << metaLength << std::endl;
+                metadataLeft = metaLength;
+                allData--;
+                position++;
+            }
+
+            if (metadataLeft >= allData) {
+                if (metaLength > 0) {
+                    writeToStderr(buffer + position, allData);
+                }
+                if (metadataLeft == allData) {
+                    readMetadata = false;
+                    metaLength = -1;
+                    dataLeft = metaInt;
+                }
+                metadataLeft -= allData;
+                allData = 0;
+            } else {
+                if (metaLength > 0) {
+                    writeToStderr(buffer + position, metadataLeft);
+                }
+                position += metadataLeft;
+                allData -= metadataLeft;
+                metadataLeft = 0;
+                readMetadata = false;
+                metaLength = -1;
+                dataLeft = metaInt;
+            }
+        }
+    }
+}
+
 void RadioProxy::readResponse() {
     int metaInt = -1;
     char buffer[BUFFER_SIZE];
@@ -182,6 +261,8 @@ void RadioProxy::readResponse() {
 
     if (metaInt == -1) {
         readWithoutMetadata(buffer, content);
+    } else {
+        readWithMetadata(buffer, metaInt, content);
     }
 }
 
