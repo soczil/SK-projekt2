@@ -14,10 +14,6 @@ private:
     unsigned timeout = 5;
     Socket socket;
 
-//    bool correctHeader(char *, int *);
-//    bool readHeader(char *, int *, std::pair<int, int>&);
-//    void readWithoutMetadata(char *, std::pair<int, int>&);
-//    void readWithMetadata(char *, int, std::pair<int, int>&);
     bool readHeader(char *, int &, std::pair<int, int> &);
     static bool correctHeader(std::vector<char> &, int &);
     void readWithoutMetadata(char *, std::pair<int, int>&);
@@ -29,7 +25,6 @@ public:
     void connect();
     void disconnect();
     void sendRequest();
-
     void readResponse();
 };
 

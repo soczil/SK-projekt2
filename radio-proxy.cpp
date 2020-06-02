@@ -105,18 +105,14 @@ bool RadioProxy::correctHeader(std::vector<char> &header, int &metaInt) {
 }
 
 bool RadioProxy::readHeader(char *buffer, int &metaInt, std::pair<int, int> &restOfContent) {
-    int sock = socket.getSockNumber();
     const char *crlf = "\r\n\r\n", *contentStart = nullptr;
     std::vector<char> header;
     ssize_t recvLength = 0;
 
     do {
-        memset(buffer, 0, BUFFER_SIZE);
-        recvLength = read(sock, buffer, BUFFER_SIZE);
+        recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
         if (recvLength == 0) {
             fatal("could not get correct header");
-        } else if (recvLength < 0) {
-            syserr("read");
         }
 
         header.insert(header.end(), buffer, buffer + recvLength);
@@ -137,17 +133,13 @@ bool RadioProxy::readHeader(char *buffer, int &metaInt, std::pair<int, int> &res
 }
 
 void RadioProxy::readWithoutMetadata(char *buffer, std::pair<int, int> &restOfContent) {
-    int sock = socket.getSockNumber();
     ssize_t recvLength = 0;
 
     writeToStdout(buffer + restOfContent.first, restOfContent.second);
     while (true) {
-        memset(buffer, 0, BUFFER_SIZE);
-        recvLength = read(sock, buffer, BUFFER_SIZE);
+        recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
         if (recvLength == 0) {
             break;
-        } else if (recvLength < 0) {
-            syserr("read");
         }
         writeToStdout(buffer, recvLength);
     }
@@ -155,17 +147,14 @@ void RadioProxy::readWithoutMetadata(char *buffer, std::pair<int, int> &restOfCo
 
 bool RadioProxy::readBlock(int limit, int &position, char *buffer,
                            ssize_t &recvLength, bool regularData) {
-    int sock = socket.getSockNumber(), dataPosition = 0;
+    int dataPosition = 0;
     char dataBuffer[BUFFER_SIZE];
 
     for (int i = 0; i < limit; i++) {
         if (position == recvLength) {
-            memset(buffer, 0, BUFFER_SIZE);
-            recvLength = read(sock, buffer, BUFFER_SIZE);
+            recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
             if (recvLength == 0) {
                 return false;
-            } else if (recvLength < 0) {
-                syserr("read");
             }
             position = 0;
         }
@@ -197,10 +186,7 @@ bool RadioProxy::readBlock(int limit, int &position, char *buffer,
 
 void RadioProxy::readWithMetadata(char *buffer, int metaInt,
                                   std::pair<int, int> &restOfContent) {
-    int sock = socket.getSockNumber(), i;
-    int dataPosition, metadataPosition, position = restOfContent.first,
-    metaLength;
-    char dataBuffer[BUFFER_SIZE], metadataBuffer[BUFFER_SIZE];
+    int position = restOfContent.first, metaLength;
     ssize_t recvLength = restOfContent.first + restOfContent.second;
 
     while (true) {
@@ -209,17 +195,13 @@ void RadioProxy::readWithMetadata(char *buffer, int metaInt,
         }
 
         if (position == recvLength) {
-            memset(buffer, 0, BUFFER_SIZE);
-            recvLength = read(sock, buffer, BUFFER_SIZE);
+            recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
             if (recvLength == 0) {
                 return;
-            } else if (recvLength < 0) {
-                syserr("read");
             }
             position = 0;
         }
         metaLength = (int) (buffer[position] * 16);
-        std::cerr << metaLength << std::endl;
         position++;
 
         if (!readBlock(metaLength, position, buffer, recvLength, false)) {

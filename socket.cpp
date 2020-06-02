@@ -7,6 +7,9 @@
 #include <iostream> // TODO: remove
 
 Socket::Socket() {
+    this->sock = 0;
+    this->addrResult = nullptr;
+
     std::memset(&(this->addrHints), 0, sizeof(struct addrinfo));
     this->addrHints.ai_family = AF_INET;
     this->addrHints.ai_socktype = SOCK_STREAM;
@@ -49,6 +52,14 @@ void Socket::writeToSocket(std::string buffer) {
     }
 }
 
-int Socket::getSockNumber() {
-    return sock;
+ssize_t Socket::readFromSocket(char *buffer, size_t size) {
+    ssize_t recvLength = 0;
+
+    memset(buffer, 0, size);
+    recvLength = read(sock, buffer, size);
+    if (recvLength < 0) {
+        syserr("read");
+    }
+
+    return recvLength;
 }

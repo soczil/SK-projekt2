@@ -15,7 +15,7 @@ public:
     void openSocket(char *, char *);
     void closeSocket();
     void writeToSocket(std::string);
-    int getSockNumber();
+    ssize_t readFromSocket(char *, size_t size);
 };
 
 #endif // _SOCKET_
