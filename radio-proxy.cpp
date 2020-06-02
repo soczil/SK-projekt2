@@ -219,6 +219,10 @@ void RadioProxy::readResponse() {
         return;
     }
 
+    if ((metaInt != -1) && !metadata) {
+        fatal("server tries to send metadata");
+    }
+
     if (metaInt == -1) {
         readWithoutMetadata(buffer, restOfContent);
     } else {
@@ -228,9 +232,9 @@ void RadioProxy::readResponse() {
 }
 
 int main(int argc, char *argv[]) {
-    RadioProxy radioClient(argc, argv);
-    radioClient.connect();
-    radioClient.sendRequest();
-    radioClient.readResponse();
-    radioClient.disconnect();
+    RadioProxy radioProxy(argc, argv);
+    radioProxy.connect();
+    radioProxy.sendRequest();
+    radioProxy.readResponse();
+    radioProxy.disconnect();
 }
