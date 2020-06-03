@@ -4,9 +4,8 @@
 #include <ctime>
 #include <netinet/in.h>
 
-const int MAX_CLIENTS = 20;
 class Client {
-    struct sockaddr_in address;
+    struct sockaddr address;
     time_t lastVisit;
 };
 

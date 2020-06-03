@@ -30,6 +30,7 @@ public:
 class UDPSocket : public Socket {
 private:
     struct sockaddr_in sockaddrIn;
+    struct ip_mreq ipMreq;
 
 public:
     UDPSocket();

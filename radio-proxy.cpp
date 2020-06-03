@@ -3,6 +3,7 @@
 #include <cstring>
 #include <sstream>
 #include <regex>
+#include <arpa/inet.h>
 #include "radio-proxy.h"
 #include "err.h"
 
@@ -78,6 +79,7 @@ void RadioProxy::connect() {
     tcpSocket.openSocket(host, port);
 
     if (proxy) {
+        std::cout << "OTWIERAM GNIAZDO UDP" << std::endl;
         udpSocket.openSocket(udpPort, multiAddress);
     }
 }
@@ -258,15 +260,60 @@ void RadioProxy::readResponse() {
 
 }
 
+int RadioProxy::clientLookup(struct sockaddr clientAddress) {
+    // TODO: mutex
+    for (auto &client : clients) {
+        if ()
+    }
+}
+
+void RadioProxy::discoverMessage() {
+
+}
+
 void RadioProxy::handleClients() {
+    int sock = udpSocket.getSockNumber();
+    struct message message {};
+    struct sockaddr clientAddress {};
+    socklen_t addressSize = sizeof(clientAddress);
+    ssize_t recvLength;
+
+    std::memset(&message, 0, sizeof(struct message));
+    std::memset(&clientAddress, 0, sizeof(struct sockaddr));
+
     while (true) {
-        break;
+        recvLength = recvfrom(sock, &message,  sizeof(struct message), 0,
+                        &clientAddress, &addressSize);
+        if (recvLength < 0) {
+            syserr("recvfrom");
+            break;
+        }
+
+        message.type = ntohs(message.type);
+        message.length = ntohs(message.length);
+        if (message.length != 0) {
+            continue;
+        }
+
+        if (message.type == 1) { // DISCOVER
+            std::cout << "DISCOVER" << std::endl;
+        } else if (message.type == 3) { // KEEPALIVE
+            std::cout << "KEEPALIVE" << std::endl;
+        } else {
+            continue;
+        }
+
+        std::cout << inet_ntoa(((struct sockaddr_in *) &clientAddress)->sin_addr) << std::endl;
+        std::cout << message.type << std::endl;
+        std::cout << message.length << std::endl;
+
     }
 }
 
 int main(int argc, char *argv[]) {
     RadioProxy radioProxy(argc, argv);
     radioProxy.connect();
+    radioProxy.handleClients();
     radioProxy.sendRequest();
     radioProxy.readResponse();
     radioProxy.disconnect();

@@ -1,6 +1,7 @@
 #include <cstring>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include "socket.h"
 #include "err.h"
 
@@ -90,13 +91,25 @@ void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
 
     if (multiAddress != nullptr) {
         std::cout << "MULTI JOL" << std::endl;
+        ipMreq.imr_interface.s_addr = htonl(INADDR_ANY);
+        if (inet_aton(multiAddress, &ipMreq.imr_multiaddr) == 0) {
+            syserr("inet_aton - invalid multicast address");
+        }
+
+        if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+                (void *) &ipMreq, sizeof(ipMreq)) < 0) {
+            syserr("socketopt");
+        }
     }
 
     sockaddrIn.sin_family = AF_INET;
     sockaddrIn.sin_addr.s_addr = htonl(INADDR_ANY);
-    sockaddrIn.sin_port = htonl(port);
+    sockaddrIn.sin_port = htons(port);
 
-    if (bind(sock, (struct sockaddr *) &sockaddrIn, sizeof(sockaddrIn)) < 0) {
+    if (bind(sock, (struct sockaddr *) &sockaddrIn,
+            sizeof(sockaddrIn)) < 0) {
         syserr("bind");
     }
+
+    this->setSockNumber(sock);
 }

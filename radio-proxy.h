@@ -4,11 +4,13 @@
 #include <vector>
 #include <utility>
 #include "socket.h"
+#include "client.h"
+#include "message.h"
 
 class RadioProxy {
 private:
     char *host = nullptr;
-    char  *resource = nullptr;
+    char *resource = nullptr;
     char *port = nullptr;
     bool metadata = false;
     unsigned timeout = 5;
@@ -18,12 +20,15 @@ private:
     unsigned clientsTimeout = 5;
     TCPSocket tcpSocket;
     UDPSocket udpSocket;
+    std::vector<Client> clients;
 
     bool readHeader(char *, int &, std::pair<int, int> &);
     static bool correctHeader(std::vector<char> &, int &);
     void readWithoutMetadata(char *, std::pair<int, int>&);
     void readWithMetadata(char *, int, std::pair<int, int>&);
     bool readBlock(int, int &, char *, ssize_t &, bool);
+    void discoverMessage();
+    int clientLookup(struct sockaddr);
 
 public:
     RadioProxy(int, char **);
