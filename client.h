@@ -8,12 +8,12 @@ class Client {
 private:
     struct sockaddr address;
     time_t lastVisit;
-    bool remove = false;
 
 public:
     explicit Client(struct sockaddr *);
     struct sockaddr *getPtrToAddress();
     void setLastVisit(time_t);
+    time_t getLastVisit();
 };
 
 #endif // _CLIENT_

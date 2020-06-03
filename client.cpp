@@ -13,3 +13,7 @@ struct sockaddr *Client::getPtrToAddress() {
 void Client::setLastVisit(time_t newTime) {
     this->lastVisit = newTime;
 }
+
+time_t Client::getLastVisit() {
+    return lastVisit;
+}

@@ -32,14 +32,18 @@ private:
     void keepaliveMessage(struct sockaddr *);
     int clientLookup(struct sockaddr *);
     void addNewClient(struct sockaddr *);
-
-public:
-    RadioProxy(int, char **);
+    void writeData(char *, size_t);
+    void writeMetadata(char *, size_t);
     void connect();
     void disconnect();
     void sendRequest();
     void readResponse();
     void handleClients();
+    void writeToClients(int, char *, size_t);
+
+public:
+    RadioProxy(int, char **);
+    void start();
 };
 
 #endif // _RADIO_PROXY_

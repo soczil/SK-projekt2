@@ -4,8 +4,12 @@
 #include <sstream>
 #include <regex>
 #include <arpa/inet.h>
+#include <csignal>
 #include "radio-proxy.h"
 #include "err.h"
+
+static bool finish = false;
+const int BUFFER_SIZE = 100;
 
 static unsigned parseToUnsigned(char *numberPtr) {
     char *end;
@@ -79,7 +83,6 @@ void RadioProxy::connect() {
     tcpSocket.openSocket(host, port);
 
     if (proxy) {
-        std::cout << "OTWIERAM GNIAZDO UDP" << std::endl;
         udpSocket.openSocket(udpPort, multiAddress);
     }
 }
@@ -99,15 +102,21 @@ void RadioProxy::sendRequest() {
     tcpSocket.writeToSocket(request.str());
 }
 
-const int BUFFER_SIZE = 100;
+void RadioProxy::writeToClients(int type, char *buffer, size_t size) {
+    // TODO:
+}
 
-static void writeToStdout(char *buffer, size_t size) {
-    if (write(1, buffer, size) != (ssize_t) size) {
-        syserr("partial / failed write to stdout");
+void RadioProxy::writeData(char *buffer, size_t size) {
+    if (!proxy) {
+        if (write(1, buffer, size) != (ssize_t) size) {
+            syserr("partial / failed write to stdout");
+        }
+    } else {
+        // TODO:
     }
 }
 
-static void writeToStderr(char *buffer, size_t size) {
+void RadioProxy::writeMetadata(char *buffer, size_t size) {
     if (write(2, buffer, size) != (ssize_t) size) {
         syserr("partial / failed write to stderr");
     }
@@ -164,13 +173,13 @@ bool RadioProxy::readHeader(char *buffer, int &metaInt, std::pair<int, int> &res
 void RadioProxy::readWithoutMetadata(char *buffer, std::pair<int, int> &restOfContent) {
     ssize_t recvLength = 0;
 
-    writeToStdout(buffer + restOfContent.first, restOfContent.second);
+    writeData(buffer + restOfContent.first, restOfContent.second);
     while (true) {
         recvLength = tcpSocket.readFromSocket(buffer, BUFFER_SIZE);
         if (recvLength == 0) {
             break;
         }
-        writeToStdout(buffer, recvLength);
+        writeData(buffer, recvLength);
     }
 }
 
@@ -190,9 +199,9 @@ bool RadioProxy::readBlock(int limit, int &position, char *buffer,
 
         if (dataPosition == BUFFER_SIZE) {
             if (regularData) {
-                writeToStdout(dataBuffer, dataPosition);
+                writeData(dataBuffer, dataPosition);
             } else {
-                writeToStderr(dataBuffer, dataPosition);
+                writeMetadata(dataBuffer, dataPosition);
             }
             dataPosition = 0;
         }
@@ -204,9 +213,9 @@ bool RadioProxy::readBlock(int limit, int &position, char *buffer,
 
     if (dataPosition > 0) {
         if (regularData) {
-            writeToStdout(dataBuffer, dataPosition);
+            writeData(dataBuffer, dataPosition);
         } else {
-            writeToStderr(dataBuffer, dataPosition);
+            writeMetadata(dataBuffer, dataPosition);
         }
     }
 
@@ -218,7 +227,7 @@ void RadioProxy::readWithMetadata(char *buffer, int metaInt,
     int position = restOfContent.first, metaLength;
     ssize_t recvLength = restOfContent.first + restOfContent.second;
 
-    while (true) {
+    while (!finish) {
         if (!readBlock(metaInt, position, buffer, recvLength, true)) {
             return;
         }
@@ -269,7 +278,6 @@ int RadioProxy::clientLookup(struct sockaddr *seekedAddress) {
         clientIn = (struct sockaddr_in *) clients[i].getPtrToAddress();
         if (seekedIn->sin_addr.s_addr == clientIn->sin_addr.s_addr
             && seekedIn->sin_port == clientIn->sin_port) {
-            std::cout << "JOOOL" << std::endl;
             return i;
         }
     }
@@ -323,13 +331,13 @@ void RadioProxy::handleClients() {
     socklen_t addressSize = sizeof(clientAddress);
     ssize_t recvLength;
 
-    std::memset(&message, 0, sizeof(struct message));
     std::memset(&clientAddress, 0, sizeof(struct sockaddr));
 
-    while (true) {
+    while (!finish) {
+        std::memset(&message, 0, sizeof(struct message));
         recvLength = recvfrom(sock, &message,  sizeof(struct message), 0,
                         &clientAddress, &addressSize);
-        if (recvLength < 0) {
+        if ((recvLength < 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK)) {
             syserr("recvfrom");
             break;
         }
@@ -341,32 +349,32 @@ void RadioProxy::handleClients() {
         }
 
         if (message.type == 1) { // DISCOVER
-            std::cout << "DISCOVER" << std::endl;
+            std::cout << "DISCOVER" << std::endl; // TODO: remove
             discoverMessage(&clientAddress, addressSize);
         } else if (message.type == 3) { // KEEPALIVE
-            std::cout << "KEEPALIVE" << std::endl;
+            std::cout << "KEEPALIVE" << std::endl; // TODO: remove
             keepaliveMessage(&clientAddress);
         } else {
-            std::cout << "POMIJAM" << std::endl; // TODO: remove
+            //std::cout << "POMIJAM" << std::endl; // TODO: remove
             continue;
-        }
-
-        std::cout << inet_ntoa(((struct sockaddr_in *) &clientAddress)->sin_addr) << std::endl;
-        std::cout << message.type << std::endl;
-        std::cout << message.length << std::endl;
-
-        for (auto &client : clients) {
-            std::cout << "CLIENT:" << std::endl;
-            std::cout << inet_ntoa(((struct sockaddr_in *) client.getPtrToAddress())->sin_addr) << std::endl;
         }
     }
 }
 
+void RadioProxy::start() {
+    connect();
+    handleClients();
+    sendRequest();
+    readResponse();
+    disconnect();
+}
+
+void static handleSigint(int signal) {
+    finish = true;
+}
+
 int main(int argc, char *argv[]) {
+    signal(SIGINT, handleSigint);
     RadioProxy radioProxy(argc, argv);
-    radioProxy.connect();
-    radioProxy.handleClients();
-    radioProxy.sendRequest();
-    radioProxy.readResponse();
-    radioProxy.disconnect();
+    radioProxy.start();
 }
