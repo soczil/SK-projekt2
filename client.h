@@ -5,8 +5,15 @@
 #include <netinet/in.h>
 
 class Client {
-    struct sockaddr address;
+private:
+    struct sockaddr address {};
     time_t lastVisit;
+    bool remove = false;
+
+public:
+    Client(struct sockaddr);
+    struct sockaddr *getPtrToAddress();
+    void setLastVisit(time_t);
 };
 
 #endif // _CLIENT_

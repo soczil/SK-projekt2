@@ -260,15 +260,59 @@ void RadioProxy::readResponse() {
 
 }
 
-int RadioProxy::clientLookup(struct sockaddr clientAddress) {
+int RadioProxy::clientLookup(struct sockaddr *seekedAddress) {
     // TODO: mutex
-    for (auto &client : clients) {
-        if ()
+    auto *seekedIn = (struct sockaddr_in *) seekedAddress;
+    struct sockaddr_in *clientIn;
+
+    for (size_t i = 0; i < clients.size(); i++) {
+        clientIn = (struct sockaddr_in *) clients[i].getPtrToAddress();
+        if (seekedIn->sin_addr.s_addr == clientIn->sin_addr.s_addr
+            && seekedIn->sin_port == clientIn->sin_port) {
+            return i;
+        }
     }
+
+    return -1;
 }
 
-void RadioProxy::discoverMessage() {
+void RadioProxy::addNewClient(struct sockaddr clientAddress) {
+    Client newClient(clientAddress);
+    clients.push_back(newClient);
+}
 
+void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
+                                 socklen_t addressSize) {
+    int sock = udpSocket.getSockNumber();
+    struct message message {};
+    ssize_t sendLength;
+    int position = clientLookup(clientAddress);
+
+    if (position == -1) {
+        addNewClient(*clientAddress);
+        position = clients.size() - 1;
+    }
+
+    message.type = htons(2);
+    message.length = htons(0);
+
+    sendLength = sendto(sock, &message, sizeof(message), 0,
+                    clientAddress, addressSize);
+    if (sendLength != (ssize_t) sizeof(message)) {
+        syserr("partial / failed write");
+    }
+
+    clients[position].setLastVisit(time(nullptr));
+}
+
+void RadioProxy::keepaliveMessage(struct sockaddr *clientAddress) {
+    int position = clientLookup(clientAddress);
+
+    if (position == -1) {
+        return;
+    }
+
+    clients[position].setLastVisit(time(nullptr));
 }
 
 void RadioProxy::handleClients() {
@@ -297,9 +341,12 @@ void RadioProxy::handleClients() {
 
         if (message.type == 1) { // DISCOVER
             std::cout << "DISCOVER" << std::endl;
+            discoverMessage(&clientAddress, addressSize);
         } else if (message.type == 3) { // KEEPALIVE
             std::cout << "KEEPALIVE" << std::endl;
+            keepaliveMessage(&clientAddress);
         } else {
+            std::cout << "POMIJAM" << std::endl; // TODO: remove
             continue;
         }
 
@@ -307,6 +354,10 @@ void RadioProxy::handleClients() {
         std::cout << message.type << std::endl;
         std::cout << message.length << std::endl;
 
+        for (auto &client : clients) {
+            std::cout << "CLIENT:" << std::endl;
+            std::cout << inet_ntoa(((struct sockaddr_in *) client.getPtrToAddress())->sin_addr) << std::endl;
+        }
     }
 }
 

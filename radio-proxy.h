@@ -21,14 +21,17 @@ private:
     TCPSocket tcpSocket;
     UDPSocket udpSocket;
     std::vector<Client> clients;
+    std::string radioName;
 
     bool readHeader(char *, int &, std::pair<int, int> &);
     static bool correctHeader(std::vector<char> &, int &);
     void readWithoutMetadata(char *, std::pair<int, int>&);
     void readWithMetadata(char *, int, std::pair<int, int>&);
     bool readBlock(int, int &, char *, ssize_t &, bool);
-    void discoverMessage();
-    int clientLookup(struct sockaddr);
+    void discoverMessage(struct sockaddr *, socklen_t);
+    void keepaliveMessage(struct sockaddr *);
+    int clientLookup(struct sockaddr *);
+    void addNewClient(struct sockaddr);
 
 public:
     RadioProxy(int, char **);
