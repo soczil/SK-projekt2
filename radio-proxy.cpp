@@ -52,11 +52,11 @@ RadioProxy::RadioProxy(int argc, char *argv[]) {
 }
 
 void RadioProxy::connect() {
-    socket.openSocket(host, port);
+    tcpSocket.openSocket(host, port);
 }
 
 void RadioProxy::disconnect() {
-    socket.closeSocket();
+    tcpSocket.closeSocket();
 }
 
 void RadioProxy::sendRequest() {
@@ -67,7 +67,7 @@ void RadioProxy::sendRequest() {
     request << "User-Agent: Casty\r\n";
     request << "Icy-MetaData: " << (metadata ? "1" : "0") << "\r\n\r\n";
 
-    socket.writeToSocket(request.str());
+    tcpSocket.writeToSocket(request.str());
 }
 
 const int BUFFER_SIZE = 100;
@@ -110,7 +110,7 @@ bool RadioProxy::readHeader(char *buffer, int &metaInt, std::pair<int, int> &res
     ssize_t recvLength = 0;
 
     do {
-        recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
+        recvLength = tcpSocket.readFromSocket(buffer, BUFFER_SIZE);
         if (recvLength == 0) {
             fatal("could not get correct header");
         }
@@ -137,7 +137,7 @@ void RadioProxy::readWithoutMetadata(char *buffer, std::pair<int, int> &restOfCo
 
     writeToStdout(buffer + restOfContent.first, restOfContent.second);
     while (true) {
-        recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
+        recvLength = tcpSocket.readFromSocket(buffer, BUFFER_SIZE);
         if (recvLength == 0) {
             break;
         }
@@ -152,7 +152,7 @@ bool RadioProxy::readBlock(int limit, int &position, char *buffer,
 
     for (int i = 0; i < limit; i++) {
         if (position == recvLength) {
-            recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
+            recvLength = tcpSocket.readFromSocket(buffer, BUFFER_SIZE);
             if (recvLength == 0) {
                 return false;
             }
@@ -195,7 +195,7 @@ void RadioProxy::readWithMetadata(char *buffer, int metaInt,
         }
 
         if (position == recvLength) {
-            recvLength = socket.readFromSocket(buffer, BUFFER_SIZE);
+            recvLength = tcpSocket.readFromSocket(buffer, BUFFER_SIZE);
             if (recvLength == 0) {
                 return;
             }

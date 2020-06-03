@@ -12,7 +12,7 @@ private:
     char *port;
     bool metadata = false;
     unsigned timeout = 5;
-    Socket socket;
+    TCPSocket tcpSocket;
 
     bool readHeader(char *, int &, std::pair<int, int> &);
     static bool correctHeader(std::vector<char> &, int &);
