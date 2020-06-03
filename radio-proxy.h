@@ -7,12 +7,17 @@
 
 class RadioProxy {
 private:
-    char *host;
-    char  *resource;
-    char *port;
+    char *host = nullptr;
+    char  *resource = nullptr;
+    char *port = nullptr;
     bool metadata = false;
     unsigned timeout = 5;
+    bool proxy = false;
+    in_port_t udpPort = 0;
+    char *multiAddress = nullptr;
+    unsigned clientsTimeout = 5;
     TCPSocket tcpSocket;
+    UDPSocket udpSocket;
 
     bool readHeader(char *, int &, std::pair<int, int> &);
     static bool correctHeader(std::vector<char> &, int &);
@@ -26,6 +31,7 @@ public:
     void disconnect();
     void sendRequest();
     void readResponse();
+    void handleClients();
 };
 
 #endif // _RADIO_PROXY_

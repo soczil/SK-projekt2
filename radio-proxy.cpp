@@ -6,12 +6,23 @@
 #include "radio-proxy.h"
 #include "err.h"
 
+static unsigned parseToUnsigned(char *numberPtr) {
+    char *end;
+    unsigned number = strtoul(numberPtr, &end, 10);
+
+    if ((errno != 0) || (end == numberPtr) || (*end != '\0')) {
+        return 0;
+    }
+
+    return number;
+}
+
 RadioProxy::RadioProxy(int argc, char *argv[]) {
     int opt;
     bool h, r, p;
 
     h = r = p = false;
-    while ((opt = getopt(argc, argv, "h:r:p:m:t:")) != -1) {
+    while ((opt = getopt(argc, argv, "h:r:p:m:t:P:B:T:")) != -1) {
         switch (opt) {
             case 'h':
                 h = true;
@@ -35,10 +46,22 @@ RadioProxy::RadioProxy(int argc, char *argv[]) {
                 }
                 break;
             case 't':
-                char *end;
-                this->timeout = strtoul(optarg, &end, 10);
-                if ((errno != 0) || (end == optarg) || (*end != '\0')) {
-                    fatal("timeout option");
+                this->timeout = parseToUnsigned(optarg);
+                if (this->timeout == 0) {
+                    fatal("t option");
+                }
+                break;
+            case 'P':
+                this->proxy = true;
+                this->udpPort = parseToUnsigned(optarg);
+                break;
+            case 'B':
+                this->multiAddress = optarg;
+                break;
+            case 'T':
+                this->clientsTimeout = parseToUnsigned(optarg);
+                if (this->clientsTimeout == 0) {
+                    fatal("T option");
                 }
                 break;
             default:
@@ -53,6 +76,10 @@ RadioProxy::RadioProxy(int argc, char *argv[]) {
 
 void RadioProxy::connect() {
     tcpSocket.openSocket(host, port);
+
+    if (proxy) {
+        udpSocket.openSocket(udpPort, multiAddress);
+    }
 }
 
 void RadioProxy::disconnect() {
@@ -229,6 +256,12 @@ void RadioProxy::readResponse() {
         readWithMetadata(buffer, metaInt, restOfContent);
     }
 
+}
+
+void RadioProxy::handleClients() {
+    while (true) {
+        break;
+    }
 }
 
 int main(int argc, char *argv[]) {

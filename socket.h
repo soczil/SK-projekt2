@@ -28,9 +28,12 @@ public:
 };
 
 class UDPSocket : public Socket {
-public:
-    void openSocket();
+private:
+    struct sockaddr_in sockaddrIn;
 
+public:
+    UDPSocket();
+    void openSocket(in_port_t, char *);
 };
 
 #endif // _SOCKET_

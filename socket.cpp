@@ -77,3 +77,26 @@ ssize_t TCPSocket::readFromSocket(char *buffer, size_t size) {
 
     return recvLength;
 }
+
+UDPSocket::UDPSocket() = default;
+
+void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
+    int sock;
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        syserr("socket");
+    }
+
+    if (multiAddress != nullptr) {
+        std::cout << "MULTI JOL" << std::endl;
+    }
+
+    sockaddrIn.sin_family = AF_INET;
+    sockaddrIn.sin_addr.s_addr = htonl(INADDR_ANY);
+    sockaddrIn.sin_port = htonl(port);
+
+    if (bind(sock, (struct sockaddr *) &sockaddrIn, sizeof(sockaddrIn)) < 0) {
+        syserr("bind");
+    }
+}
