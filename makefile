@@ -6,7 +6,7 @@ LFLAGS = -Wall
 
 all: $(TARGETS)
 
-radio-proxy.o: radio-proxy.cpp radio-proxy.h socket.h message.h err.h
+radio-proxy.o: radio-proxy.cpp radio-proxy.h socket.h message.h client.h err.h
 	$(CC) $(CFLAGS) -c $<
 
 socket.o: socket.cpp socket.h err.h

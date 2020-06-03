@@ -1,7 +1,8 @@
+#include <cstring>
 #include "client.h"
 
-Client::Client(struct sockaddr newAddress) {
-    address = newAddress;
+Client::Client(struct sockaddr *newAddress) {
+    memcpy(&address, newAddress, sizeof(struct sockaddr));
     lastVisit = time(nullptr);
 }
 

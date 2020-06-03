@@ -31,7 +31,7 @@ private:
     void discoverMessage(struct sockaddr *, socklen_t);
     void keepaliveMessage(struct sockaddr *);
     int clientLookup(struct sockaddr *);
-    void addNewClient(struct sockaddr);
+    void addNewClient(struct sockaddr *);
 
 public:
     RadioProxy(int, char **);

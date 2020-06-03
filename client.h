@@ -6,12 +6,12 @@
 
 class Client {
 private:
-    struct sockaddr address {};
+    struct sockaddr address;
     time_t lastVisit;
     bool remove = false;
 
 public:
-    Client(struct sockaddr);
+    explicit Client(struct sockaddr *);
     struct sockaddr *getPtrToAddress();
     void setLastVisit(time_t);
 };

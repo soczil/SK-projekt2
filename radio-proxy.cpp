@@ -269,6 +269,7 @@ int RadioProxy::clientLookup(struct sockaddr *seekedAddress) {
         clientIn = (struct sockaddr_in *) clients[i].getPtrToAddress();
         if (seekedIn->sin_addr.s_addr == clientIn->sin_addr.s_addr
             && seekedIn->sin_port == clientIn->sin_port) {
+            std::cout << "JOOOL" << std::endl;
             return i;
         }
     }
@@ -276,7 +277,7 @@ int RadioProxy::clientLookup(struct sockaddr *seekedAddress) {
     return -1;
 }
 
-void RadioProxy::addNewClient(struct sockaddr clientAddress) {
+void RadioProxy::addNewClient(struct sockaddr *clientAddress) {
     Client newClient(clientAddress);
     clients.push_back(newClient);
 }
@@ -289,7 +290,7 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
     int position = clientLookup(clientAddress);
 
     if (position == -1) {
-        addNewClient(*clientAddress);
+        addNewClient(clientAddress);
         position = clients.size() - 1;
     }
 
