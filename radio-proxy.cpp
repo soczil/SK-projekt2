@@ -103,7 +103,29 @@ void RadioProxy::sendRequest() {
 }
 
 void RadioProxy::writeToClients(int type, char *buffer, size_t size) {
-    // TODO:
+    // TODO: mutex
+    int sock = udpSocket.getSockNumber();
+    ssize_t sendLength;
+    struct message message {};
+    struct sockaddr *address;
+
+    message.type = type;
+    message.length = size;
+    std::memcpy(message.buffer, buffer, size);
+
+    for (auto it = clients.begin(); it != clients.end();) {
+        if ((*it).getTimeDifference() > clientsTimeout) {
+            it = clients.erase(it);
+        } else {
+            address = (*it).getPtrToAddress();
+            sendLength = sendto(sock, &message, sizeof(message), 0,
+                                address, sizeof(*address));
+            if (sendLength != sizeof(message)) {
+                syserr("partial / failed sendto");
+            }
+            it++;
+        }
+    }
 }
 
 void RadioProxy::writeData(char *buffer, size_t size) {
@@ -112,13 +134,17 @@ void RadioProxy::writeData(char *buffer, size_t size) {
             syserr("partial / failed write to stdout");
         }
     } else {
-        // TODO:
+        writeToClients(4, buffer, size);
     }
 }
 
 void RadioProxy::writeMetadata(char *buffer, size_t size) {
-    if (write(2, buffer, size) != (ssize_t) size) {
-        syserr("partial / failed write to stderr");
+    if (!proxy) {
+        if (write(2, buffer, size) != (ssize_t) size) {
+            syserr("partial / failed write to stderr");
+        }
+    } else {
+        writeToClients(6, buffer, size);
     }
 }
 
@@ -308,7 +334,7 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
     sendLength = sendto(sock, &message, sizeof(message), 0,
                     clientAddress, addressSize);
     if (sendLength != (ssize_t) sizeof(message)) {
-        syserr("partial / failed write");
+        syserr("partial / failed sendto");
     }
 
     clients[position].setLastVisit(time(nullptr));
@@ -363,18 +389,18 @@ void RadioProxy::handleClients() {
 
 void RadioProxy::start() {
     connect();
-    handleClients();
+    //handleClients();
     sendRequest();
     readResponse();
     disconnect();
 }
 
-void static handleSigint(int signal) {
-    finish = true;
-}
+//void static handleSigint(__attribute__((unused)) int signal) {
+//    finish = true;
+//}
 
 int main(int argc, char *argv[]) {
-    signal(SIGINT, handleSigint);
+    //signal(SIGINT, handleSigint);
     RadioProxy radioProxy(argc, argv);
     radioProxy.start();
 }

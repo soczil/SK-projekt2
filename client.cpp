@@ -14,6 +14,14 @@ void Client::setLastVisit(time_t newTime) {
     this->lastVisit = newTime;
 }
 
-time_t Client::getLastVisit() {
-    return lastVisit;
+unsigned Client::getTimeDifference() {
+    return (time(nullptr) - lastVisit);
+}
+
+void Client::setRemove(bool value) {
+    this->remove = value;
+}
+
+bool Client::getRemove() {
+    return remove;
 }
