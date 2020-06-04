@@ -331,15 +331,15 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
     if (position == -1) {
         addNewClient(clientAddress);
         position = clients.size() - 1;
-    }
+    } else {
+        message.type = htons(2);
+        message.length = htons(0);
 
-    message.type = htons(2);
-    message.length = htons(0);
-
-    sendLength = sendto(sock, &message, sizeof(message), 0,
-                    clientAddress, addressSize);
-    if (sendLength != (ssize_t) sizeof(message)) {
-        syserr("partial / failed sendto");
+        sendLength = sendto(sock, &message, sizeof(message), 0,
+                            clientAddress, addressSize);
+        if (sendLength != (ssize_t) sizeof(message)) {
+            syserr("partial / failed sendto");
+        }
     }
 
     clients[position].setLastVisit(time(nullptr));
@@ -365,10 +365,9 @@ void RadioProxy::handleClients() {
     socklen_t addressSize = sizeof(clientAddress);
     ssize_t recvLength;
 
-    std::memset(&clientAddress, 0, sizeof(struct sockaddr));
-
     while (!finish) {
         std::memset(&message, 0, sizeof(struct message));
+        std::memset(&clientAddress, 0, sizeof(struct sockaddr));
         recvLength = recvfrom(sock, &message,  sizeof(struct message), 0,
                         &clientAddress, &addressSize);
         if ((recvLength < 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK)) {

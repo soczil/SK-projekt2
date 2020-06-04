@@ -17,11 +17,3 @@ void Client::setLastVisit(time_t newTime) {
 unsigned Client::getTimeDifference() {
     return (time(nullptr) - lastVisit);
 }
-
-void Client::setRemove(bool value) {
-    this->remove = value;
-}
-
-bool Client::getRemove() {
-    return remove;
-}

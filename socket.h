@@ -37,4 +37,15 @@ public:
     void openSocket(in_port_t, char *);
 };
 
+class BroadcastSocket : public Socket {
+private:
+    const static int TTL_VALUE = 4;
+    struct sockaddr_in sockaddrIn;
+
+public:
+    BroadcastSocket();
+    void openSocket(in_port_t, char *);
+    struct sockaddr_in *getSockaddrPtr();
+};
+
 #endif // _SOCKET_

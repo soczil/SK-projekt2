@@ -84,19 +84,19 @@ UDPSocket::UDPSocket() = default;
 
 void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
     int sock;
-    //struct timeval tv;
-//
-//    tv.tv_sec = 2;
-//    tv.tv_usec = 0;
+    struct timeval tv;
+
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         syserr("socket");
     }
 
-//    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-//        syserr("socketopt");
-//    }
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        syserr("socketopt");
+    }
 
     if (multiAddress != nullptr) {
         std::cout << "MULTI JOL" << std::endl;
@@ -107,7 +107,7 @@ void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
 
         if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                 (void *) &ipMreq, sizeof(ipMreq)) < 0) {
-            syserr("socketopt");
+            syserr("setsockopt");
         }
     }
 
@@ -121,4 +121,41 @@ void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
     }
 
     this->setSockNumber(sock);
+}
+
+BroadcastSocket::BroadcastSocket() = default;
+
+void BroadcastSocket::openSocket(in_port_t port, char *address) {
+    int sock, optval;
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        syserr("socket");
+    }
+
+    // Uaktywnienie rozgłaszania.
+    optval = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST,
+            (void *) &optval, sizeof(optval)) < 0) {
+        syserr("setsockopt broadcast");
+    }
+
+    // Ustawienie TTL dla datagramów rozsyłanych do grupy.
+    optval = TTL_VALUE;
+    if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL,
+            (void *) &optval, sizeof(optval)) < 0) {
+        syserr("setsockopt multicast ttl");
+    }
+
+    sockaddrIn.sin_family = AF_INET;
+    sockaddrIn.sin_port = htons(port);
+    if (inet_aton(address, &sockaddrIn.sin_addr) == 0) {
+        syserr("inet_aton - invalid multicast address");
+    }
+
+    this->setSockNumber(sock);
+}
+
+struct sockaddr_in *BroadcastSocket::getSockaddrPtr() {
+    return &sockaddrIn;
 }
