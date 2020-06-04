@@ -68,6 +68,29 @@ void TCPSocket::openSocket(char *host, char *port, unsigned timeout) {
     freeaddrinfo(addrResult);
 }
 
+void TCPSocket::openSocketForTelnet(in_port_t port) {
+    int sock;
+
+    sock = socket(PF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        syserr("socket");
+    }
+
+    sockaddrIn.sin_family = AF_INET;
+    sockaddrIn.sin_addr.s_addr = htonl(INADDR_ANY);
+    sockaddrIn.sin_port = htons(port);
+    if (bind(sock, (struct sockaddr *) &sockaddrIn,
+            (socklen_t) sizeof(sockaddrIn)) < 0) {
+        syserr("bind");
+    }
+
+    if (listen(sock, 1) < 0) {
+        syserr("listen");
+    }
+
+    this->setSockNumber(sock);
+}
+
 void TCPSocket::writeToSocket(const std::string& buffer) {
     ssize_t sendLength = buffer.length();
 

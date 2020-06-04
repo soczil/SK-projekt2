@@ -19,10 +19,12 @@ class TCPSocket : public Socket {
 private:
     struct addrinfo addrHints;
     struct addrinfo *addrResult;
+    struct sockaddr_in sockaddrIn;
 
 public:
     TCPSocket();
     void openSocket(char *, char *, unsigned);
+    void openSocketForTelnet(in_port_t);
     void writeToSocket(const std::string&);
     ssize_t readFromSocket(char *, size_t size);
 };

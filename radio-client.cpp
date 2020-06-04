@@ -42,7 +42,7 @@ RadioClient::RadioClient(int argc, char **argv) {
                 break;
             case 'p':
                 p = true;
-                this->tcpPort = optarg;
+                this->tcpPort = parseToUnsigned(optarg);
                 break;
             case 'T':
                 this->timeout = parseToUnsigned(optarg);
@@ -166,18 +166,67 @@ void RadioClient::receiveData() {
     }
 }
 
+bool finishTelnet = false;
+const char *KEY_UP = "\033[A";
+const char *KEY_DOWN = "\033[B";
+const char *ENTER = "\n";
+void RadioClient::menageTelnet(int sock) {
+    int telnetSock;
+    char buffer[128];
+    ssize_t recvLength;
+    bool up, down, enter;
+    up = down = enter = false;
+
+    if ((telnetSock = accept(sock, (struct sockaddr *) 0, (socklen_t *) 0)) < 0) {
+        syserr("accept");
+    }
+
+    if (write(telnetSock,"\377\375\042\377\373\001",6) != 6) {
+        syserr("write");
+    }
+
+    if (write(telnetSock, "\u001B[2J", 4) != 4) {
+        syserr("write");
+    }
+
+    while (!finishTelnet) {
+
+        memset(buffer, 0, 128);
+        if ((recvLength = read(telnetSock, buffer, 128)) < 0) {
+            syserr("read");
+        }
+
+        if (strcmp(buffer, KEY_UP) == 0) {
+            std::cout << "JOOOOL" << std::endl;
+        }
+
+        if (strcmp(buffer, KEY_DOWN) == 0) {
+            std::cout << "JOOOOL" << std::endl;
+        }
+
+        if (strcmp(buffer, ENTER) == 0) {
+            std::cout << "ENTER" << std::endl;
+        }
+
+        write(1, buffer, recvLength);
+    }
+}
+
 void RadioClient::start() {
     broadcastSocket.openSocket(udpPort, host);
-    sendDiscover();
-    receiveData();
-    servers.clear();
+    tcpSocket.openSocketForTelnet(tcpPort);
+    menageTelnet(tcpSocket.getSockNumber());
+//    sendDiscover();
+//    receiveData();
+//    servers.clear();
     broadcastSocket.closeSocket();
 }
 
 static void handleSignal(__attribute__((unused)) int signal) {
     finish = true;
+    finishTelnet = true;
     // TODO: close sockets itp
-    //exit(0);
+    exit(0);
 }
 
 int main(int argc, char **argv) {
