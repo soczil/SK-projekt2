@@ -5,6 +5,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstring>
+#include <sstream>
 #include "radio-client.h"
 #include "message.h"
 #include "err.h"
@@ -166,49 +167,75 @@ void RadioClient::receiveData() {
     }
 }
 
+int telnetSock = 0;
 bool finishTelnet = false;
+
 const char *KEY_UP = "\033[A";
 const char *KEY_DOWN = "\033[B";
-const char *ENTER = "\n";
-void RadioClient::menageTelnet(int sock) {
-    int telnetSock;
-    char buffer[128];
-    ssize_t recvLength;
-    bool up, down, enter;
-    up = down = enter = false;
+const char *ENTER = "\r\0";
+const char *RESET = "\u001b[0m";
+const char *COLOR = "\033[31;7m";
+const char *CLEAR_SCREEN = "\u001B[2J";
+const char *SEARCH = "Szukaj pośrednika\r\n";
+const char *END = "Koniec\r\n";
 
-    if ((telnetSock = accept(sock, (struct sockaddr *) 0, (socklen_t *) 0)) < 0) {
+int optionPosition = 0;
+int optionsNumber = 2;
+
+void refreshScreen() {
+    std::string buffer;
+    std::stringstream ss;
+
+    ss << CLEAR_SCREEN;
+    if (optionPosition == 0) {
+        ss << COLOR << SEARCH << RESET;
+    } else {
+        ss << SEARCH;
+    }
+
+    if (optionPosition == (optionsNumber - 1)) {
+        ss << COLOR << END << RESET;
+    } else {
+        ss << END;
+    }
+
+    buffer = ss.str();
+    if (write(telnetSock, buffer.c_str(), buffer.length()) != (ssize_t) buffer.length()) {
+        syserr("write");
+    }
+}
+
+void RadioClient::menageTelnet(int sock) {
+    char buffer[64];
+    std::stringstream ss;
+
+    if ((telnetSock = accept(sock, (struct sockaddr *) 0,
+                (socklen_t *) 0)) < 0) {
         syserr("accept");
     }
 
-    if (write(telnetSock,"\377\375\042\377\373\001",6) != 6) {
-        syserr("write");
-    }
-
-    if (write(telnetSock, "\u001B[2J", 4) != 4) {
+    if ((write(telnetSock,"\377\375\042\377\373\001",6) != 6)
+        || (write(telnetSock, "\u001B[2J", 4) != 4)) {
         syserr("write");
     }
 
     while (!finishTelnet) {
+        refreshScreen();
 
-        memset(buffer, 0, 128);
-        if ((recvLength = read(telnetSock, buffer, 128)) < 0) {
+        memset(buffer, 0, 64);
+        if (read(telnetSock, buffer, 64) < 0) {
             syserr("read");
         }
 
         if (strcmp(buffer, KEY_UP) == 0) {
+            optionPosition = (optionPosition != 0) ? (optionPosition - 1) : optionPosition;
             std::cout << "JOOOOL" << std::endl;
-        }
-
-        if (strcmp(buffer, KEY_DOWN) == 0) {
+        }else if (strcmp(buffer, KEY_DOWN) == 0) {
+            optionPosition = (optionPosition != optionsNumber - 1) ? (optionPosition + 1) : optionPosition;
             std::cout << "JOOOOL" << std::endl;
-        }
-
-        if (strcmp(buffer, ENTER) == 0) {
+        } else if (strcmp(buffer, ENTER) == 0) {
             std::cout << "ENTER" << std::endl;
         }
-
-        write(1, buffer, recvLength);
     }
 }
 
