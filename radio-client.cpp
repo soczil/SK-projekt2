@@ -4,6 +4,7 @@
 #include <thread>
 #include <chrono>
 #include <csignal>
+#include <cstring>
 #include "radio-client.h"
 #include "message.h"
 #include "err.h"
@@ -56,8 +57,58 @@ RadioClient::RadioClient(int argc, char **argv) {
     }
 }
 
+void RadioClient::sendDiscover() {
+    int sock = broadcastSocket.getSockNumber();
+    struct message message {};
+    size_t length;
+    struct sockaddr *address;
+
+    address = (struct sockaddr *) broadcastSocket.getSockaddrPtr();
+
+    message.type = htons(1);
+    message.length = htons(0);
+
+    length = sizeof(message);
+    if (sendto(sock, &message, length, 0,
+            address, sizeof(*address)) != (ssize_t) length) {
+        syserr("partial / failed sendto");
+    }
+}
+
+bool RadioClient::receiveIam() {
+    int sock = broadcastSocket.getSockNumber();
+    struct message message {};
+    struct sockaddr address;
+    socklen_t addressSize;
+    ssize_t recvLength;
+
+    // TODO: jakas lista dostepnych i opcja wybierania
+    std::memset(&address, 0, sizeof(struct sockaddr));
+    addressSize = sizeof(address);
+    recvLength = recvfrom(sock, &message, sizeof(message),
+                0, &address, &addressSize);
+    if (recvLength < 0) {
+        syserr("recvfrom");
+    }
+
+    message.type = ntohs(message.type);
+    message.length = ntohs(message.length);
+    std::cout << message.type << std::endl;
+    if (message.type == 2) {
+        std::cout << "JOL" << std::endl;
+        Server server(&address, addressSize, "jol", 3);
+        servers.push_back(server);
+        this->currentServer = 0;
+        return true;
+    }
+
+    return false;
+}
+
 void RadioClient::sendKeepAlive() {
     int sock = broadcastSocket.getSockNumber();
+    struct sockaddr *address = servers[currentServer].getPtrToAddress();
+    socklen_t addressSize = servers[currentServer].getAddressSize();
     struct message message {};
     size_t length;
 
@@ -69,7 +120,7 @@ void RadioClient::sendKeepAlive() {
         std::this_thread::sleep_for(std::chrono::milliseconds(3500));
         // TODO: check if sendto is non-blocking
         if (sendto(sock, &message, length, 0,
-                &proxyAddress, proxyAddressSize) != (ssize_t) length) {
+                address, addressSize) != (ssize_t) length) {
             syserr("partial / failed sendto");
         }
     }
@@ -78,11 +129,13 @@ void RadioClient::sendKeepAlive() {
 void RadioClient::receiveData() {
     int sock = broadcastSocket.getSockNumber();
     ssize_t recvLength;
+    struct sockaddr *address = servers[currentServer].getPtrToAddress();
+    socklen_t addressSize = servers[currentServer].getAddressSize();
     struct message message {};
 
     while (!finish) {
         recvLength = recvfrom(sock, &message, sizeof(message),
-                    0, &proxyAddress, &proxyAddressSize);
+                    0, address, &addressSize);
         if (recvLength < 0) {
             syserr("recvfrom");
         }
@@ -104,8 +157,15 @@ void RadioClient::receiveData() {
 
 void RadioClient::start() {
     broadcastSocket.openSocket(udpPort, host);
-    std::thread thread(&RadioClient::sendKeepAlive, this);
-    thread.detach(); // TODO: ??
+    sendDiscover();
+    if (receiveIam()) {
+        std::thread thread(&RadioClient::sendKeepAlive, this);
+        thread.detach(); // TODO: ??
+        receiveData();
+    }
+
+    servers.clear();
+    broadcastSocket.closeSocket();
 }
 
 static void handleSignal(__attribute__((unused)) int signal) {
@@ -117,5 +177,5 @@ static void handleSignal(__attribute__((unused)) int signal) {
 int main(int argc, char **argv) {
     std::signal(SIGINT, handleSignal);
     RadioClient radioClient(argc, argv);
-    std::cout << "JOL" << std::endl;
+    radioClient.start();
 }

@@ -6,10 +6,13 @@ LFLAGS = -Wall
 
 all: $(TARGETS)
 
-radio-client.o: radio-client.cpp radio-client.h message.h socket.h err.h
+radio-client.o: radio-client.cpp radio-client.h message.h socket.h server.h err.h
 	$(CC) $(CFLAGS) -c $<
 
 radio-proxy.o: radio-proxy.cpp radio-proxy.h socket.h message.h client.h err.h
+	$(CC) $(CFLAGS) -c $<
+
+server.o: server.cpp server.h
 	$(CC) $(CFLAGS) -c $<
 
 socket.o: socket.cpp socket.h err.h
@@ -21,8 +24,8 @@ client.o: client.cpp client.h err.h
 err.o: err.c err.h
 	$(CC) $(CFLAGS) -c $<
 
-radio-client: radio-client.o socket.o err.o
-	$(CC) $(CFLAGS) -o $@ $^
+radio-client: radio-client.o socket.o server.o err.o
+	$(CC) $(CFLAGS) -pthread -o $@ $^
 
 radio-proxy: radio-proxy.o socket.o client.o err.o
 	$(CC) $(CFLAGS) -pthread -o $@ $^

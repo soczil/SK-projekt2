@@ -1,6 +1,8 @@
 #ifndef _RADIO_CLIENT_
 #define _RADIO_CLIENT_
 
+#include <vector>
+#include "server.h"
 #include "socket.h"
 
 class RadioClient {
@@ -9,10 +11,12 @@ private:
     in_port_t udpPort;
     char *tcpPort;
     unsigned timeout;
-    struct sockaddr proxyAddress;
-    socklen_t proxyAddressSize;
     BroadcastSocket broadcastSocket;
+    size_t currentServer;
+    std::vector<Server> servers;
 
+    void sendDiscover();
+    bool receiveIam();
     void sendKeepAlive();
     void receiveData();
 

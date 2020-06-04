@@ -167,6 +167,7 @@ bool RadioProxy::correctHeader(std::vector<char> &header, int &metaInt) {
     if (std::regex_search(headerString, sm, metaIntRegex)) {
         metaInt = std::stoi(sm[1].str());
     }
+    std::cout << headerString << std::endl;
 
     return true;
 }
@@ -331,7 +332,7 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
     if (position == -1) {
         addNewClient(clientAddress);
         position = clients.size() - 1;
-    } else {
+
         message.type = htons(2);
         message.length = htons(0);
 
