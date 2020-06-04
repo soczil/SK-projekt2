@@ -10,7 +10,7 @@
 #include "err.h"
 
 static bool finish = false;
-const int BUFFER_SIZE = 100;
+const int BUFFER_SIZE = 128;
 
 static unsigned parseToUnsigned(char *numberPtr) {
     char *end;
@@ -81,7 +81,7 @@ RadioProxy::RadioProxy(int argc, char *argv[]) {
 }
 
 void RadioProxy::connect() {
-    tcpSocket.openSocket(host, port);
+    tcpSocket.openSocket(host, port, timeout);
 
     if (proxy) {
         udpSocket.openSocket(udpPort, multiAddress);
@@ -154,6 +154,7 @@ void RadioProxy::writeMetadata(char *buffer, size_t size) {
 bool RadioProxy::correctHeader(std::vector<char> &header, int &metaInt) {
     const std::regex correctStatus("(?:ICY 200 OK\r)|(?:HTTP\\/1\\.[0-1] 200 OK\r)|(?:HTTP 200 OK\r)");
     const std::regex metaIntRegex("\r\n(?:icy-metaint:([0-9]+))\r\n", std::regex_constants::icase);
+    const std::regex nameRegex("\r\nicy-name:(.+)\r\n", std::regex_constants::icase);
     auto newLine = std::find(header.begin(), header.end(), '\n');
 
     if (!std::regex_match(header.begin(), newLine, correctStatus)) {
@@ -167,7 +168,12 @@ bool RadioProxy::correctHeader(std::vector<char> &header, int &metaInt) {
     if (std::regex_search(headerString, sm, metaIntRegex)) {
         metaInt = std::stoi(sm[1].str());
     }
-    std::cout << headerString << std::endl;
+
+    if (std::regex_search(headerString, sm, nameRegex)) {
+        radioName = sm[1].str();
+    } else {
+        radioName = "Radio";
+    }
 
     return true;
 }
@@ -291,7 +297,7 @@ void RadioProxy::readResponse() {
         fatal("server tries to send metadata");
     }
 
-    if (metaInt == -1) {
+    if ((metaInt == -1) || (metaInt == 0)) {
         readWithoutMetadata(buffer, restOfContent);
     } else {
         readWithMetadata(buffer, metaInt, restOfContent);
@@ -334,7 +340,9 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
         position = clients.size() - 1;
 
         message.type = htons(2);
-        message.length = htons(0);
+        message.length = htons(radioName.length());
+        std::memset(message.buffer, 0, BUFFER_SIZE);
+        strncpy(message.buffer, radioName.c_str(), BUFFER_SIZE - 1);
 
         sendLength = sendto(sock, &message, sizeof(message), 0,
                             clientAddress, addressSize);
@@ -406,12 +414,13 @@ void RadioProxy::start() {
     disconnect();
 }
 
-//void static handleSigint(__attribute__((unused)) int signal) {
-//    finish = true;
-//}
+void static handleSigint(__attribute__((unused)) int signal) {
+    finish = true;
+    exit(0);
+}
 
 int main(int argc, char *argv[]) {
-    //signal(SIGINT, handleSigint);
+    signal(SIGINT, handleSigint);
     RadioProxy radioProxy(argc, argv);
     radioProxy.start();
 }

@@ -10,6 +10,9 @@
 #include "err.h"
 
 static int finish = false;
+std::vector<Server> servers;
+Server currentServer;
+bool isServer = false;
 
 static unsigned parseToUnsigned(char *numberPtr) {
     char *end;
@@ -75,42 +78,46 @@ void RadioClient::sendDiscover() {
     }
 }
 
-bool RadioClient::receiveIam() {
-    int sock = broadcastSocket.getSockNumber();
-    struct message message {};
-    struct sockaddr address;
-    socklen_t addressSize;
-    ssize_t recvLength;
+int RadioClient::serverLookup(struct sockaddr *seekedAddress) {
+    auto *seekedIn = (struct sockaddr_in *) seekedAddress;
+    struct sockaddr_in *clientIn;
 
-    // TODO: jakas lista dostepnych i opcja wybierania
-    std::memset(&address, 0, sizeof(struct sockaddr));
-    addressSize = sizeof(address);
-    recvLength = recvfrom(sock, &message, sizeof(message),
-                0, &address, &addressSize);
-    if (recvLength < 0) {
-        syserr("recvfrom");
+    for (size_t i = 0; i < servers.size(); i++) {
+        clientIn = (struct sockaddr_in *) servers[i].getPtrToAddress();
+        if (seekedIn->sin_addr.s_addr == clientIn->sin_addr.s_addr
+            && seekedIn->sin_port == clientIn->sin_port) {
+            return i;
+        }
     }
 
-    message.type = ntohs(message.type);
-    message.length = ntohs(message.length);
-    std::cout << message.type << std::endl;
-    if (message.type == 2) {
-        std::cout << "JOL" << std::endl;
-        Server server(&address, addressSize, "jol", 3);
+    return -1;
+}
+
+void RadioClient::receiveIam(struct sockaddr *address, socklen_t addressSize,
+                             struct message *message) {
+    std::string name(message->buffer);
+    int position = serverLookup(address);
+
+    if (position == -1) {
+        Server server(address, addressSize, name);
         servers.push_back(server);
-        this->currentServer = 0;
-        return true;
+        position = servers.size() - 1;
     }
-
-    return false;
+    // TODO: sprawdzic czy mamy serwer
+    if (!isServer) {
+        currentServer = servers[position];
+        std::thread thread(&RadioClient::sendKeepAlive, this);
+        thread.detach();
+    }
 }
 
 void RadioClient::sendKeepAlive() {
     int sock = broadcastSocket.getSockNumber();
-    struct sockaddr *address = servers[currentServer].getPtrToAddress();
-    socklen_t addressSize = servers[currentServer].getAddressSize();
+    struct sockaddr *address = currentServer.getPtrToAddress();
+    socklen_t addressSize = currentServer.getAddressSize();
     struct message message {};
     size_t length;
+
 
     message.type = htons(3);
     message.length = htons(0);
@@ -129,13 +136,15 @@ void RadioClient::sendKeepAlive() {
 void RadioClient::receiveData() {
     int sock = broadcastSocket.getSockNumber();
     ssize_t recvLength;
-    struct sockaddr *address = servers[currentServer].getPtrToAddress();
-    socklen_t addressSize = servers[currentServer].getAddressSize();
+    struct sockaddr address;
+    socklen_t addressSize;
     struct message message {};
 
     while (!finish) {
+        std::memset(&address, 0, sizeof(struct sockaddr));
+        addressSize = sizeof(address);
         recvLength = recvfrom(sock, &message, sizeof(message),
-                    0, address, &addressSize);
+                    0, &address, &addressSize);
         if (recvLength < 0) {
             syserr("recvfrom");
         }
@@ -143,7 +152,9 @@ void RadioClient::receiveData() {
         message.type = ntohs(message.type);
         message.length = ntohs(message.length);
 
-        if (message.type == 4) {
+        if (message.type == 2) {
+            receiveIam(&address, addressSize, &message);
+        } else if (message.type == 4) {
             if (write(1, message.buffer, message.length) != message.length) {
                 syserr("write");
             }
@@ -158,12 +169,7 @@ void RadioClient::receiveData() {
 void RadioClient::start() {
     broadcastSocket.openSocket(udpPort, host);
     sendDiscover();
-    if (receiveIam()) {
-        std::thread thread(&RadioClient::sendKeepAlive, this);
-        thread.detach(); // TODO: ??
-        receiveData();
-    }
-
+    receiveData();
     servers.clear();
     broadcastSocket.closeSocket();
 }
@@ -171,7 +177,7 @@ void RadioClient::start() {
 static void handleSignal(__attribute__((unused)) int signal) {
     finish = true;
     // TODO: close sockets itp
-    exit(0);
+    //exit(0);
 }
 
 int main(int argc, char **argv) {

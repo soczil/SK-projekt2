@@ -26,7 +26,7 @@ private:
     std::mutex mutex;
 
     bool readHeader(char *, int &, std::pair<int, int> &);
-    static bool correctHeader(std::vector<char> &, int &);
+    bool correctHeader(std::vector<char> &, int &);
     void readWithoutMetadata(char *, std::pair<int, int>&);
     void readWithMetadata(char *, int, std::pair<int, int>&);
     bool readBlock(int, int &, char *, ssize_t &, bool, char *);

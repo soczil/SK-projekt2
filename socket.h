@@ -22,7 +22,7 @@ private:
 
 public:
     TCPSocket();
-    void openSocket(char *, char *);
+    void openSocket(char *, char *, unsigned);
     void writeToSocket(const std::string&);
     ssize_t readFromSocket(char *, size_t size);
 };

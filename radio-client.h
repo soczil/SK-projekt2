@@ -12,13 +12,12 @@ private:
     char *tcpPort;
     unsigned timeout;
     BroadcastSocket broadcastSocket;
-    size_t currentServer;
-    std::vector<Server> servers;
 
     void sendDiscover();
-    bool receiveIam();
+    void receiveIam(struct sockaddr *, socklen_t, struct message *);
     void sendKeepAlive();
     void receiveData();
+    int serverLookup(struct sockaddr *);
 
 public:
     RadioClient(int, char **);

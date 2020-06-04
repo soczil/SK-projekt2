@@ -36,8 +36,12 @@ TCPSocket::TCPSocket() {
     this->addrHints.ai_protocol = IPPROTO_TCP;
 }
 
-void TCPSocket::openSocket(char *host, char *port) {
+void TCPSocket::openSocket(char *host, char *port, unsigned timeout) {
     int err, sock;
+    struct timeval tv;
+
+    tv.tv_sec = timeout;
+    tv.tv_usec = 0;
 
     err = getaddrinfo(host, port, &addrHints, &addrResult);
     if (err != 0) {
@@ -48,6 +52,10 @@ void TCPSocket::openSocket(char *host, char *port) {
                         addrResult->ai_protocol);
     if (sock < 0) {
         syserr("socket");
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        syserr("socketopt");
     }
 
     err = connect(sock, addrResult->ai_addr, addrResult->ai_addrlen);
@@ -127,10 +135,18 @@ BroadcastSocket::BroadcastSocket() = default;
 
 void BroadcastSocket::openSocket(in_port_t port, char *address) {
     int sock, optval;
+    struct timeval tv;
+
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         syserr("socket");
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        syserr("socketopt");
     }
 
     // Uaktywnienie rozgłaszania.

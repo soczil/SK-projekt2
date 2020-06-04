@@ -1,13 +1,20 @@
 #include <cstring>
 #include "server.h"
 
-Server::Server(struct sockaddr *address, socklen_t addressSize,
-        char *name, u_int16_t nameSize) {
+Server::Server(struct sockaddr *address, socklen_t addressSize, std::string name) {
     std::memcpy(&(this->address), address, addressSize);
     this->addressSize = addressSize;
     this->name = name;
-    this->nameSize = nameSize;
 }
+
+Server::Server(const Server &server) {
+    std::memcpy(&(this->address), &(server.address), server.addressSize);
+    this->addressSize = server.addressSize;
+    this->name = server.name;
+    this->lastMessage = server.lastMessage;
+}
+
+Server::Server() = default;
 
 struct sockaddr *Server::getPtrToAddress() {
     return &address;
@@ -15,4 +22,8 @@ struct sockaddr *Server::getPtrToAddress() {
 
 socklen_t Server::getAddressSize() {
     return addressSize;
+}
+
+std::string Server::getName() {
+    return name;
 }
