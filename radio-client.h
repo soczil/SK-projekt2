@@ -10,10 +10,11 @@ private:
     char *tcpPort;
     unsigned timeout;
     struct sockaddr proxyAddress;
-    size_t proxyAddressSize;
+    socklen_t proxyAddressSize;
     BroadcastSocket broadcastSocket;
 
     void sendKeepAlive();
+    void receiveData();
 
 public:
     RadioClient(int, char **);

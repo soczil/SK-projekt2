@@ -3,11 +3,12 @@
 #include <arpa/inet.h>
 #include <thread>
 #include <chrono>
+#include <csignal>
 #include "radio-client.h"
 #include "message.h"
 #include "err.h"
 
-const int finish = false;
+static int finish = false;
 
 static unsigned parseToUnsigned(char *numberPtr) {
     char *end;
@@ -66,18 +67,55 @@ void RadioClient::sendKeepAlive() {
     length = sizeof(message);
     while (!finish) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+        // TODO: check if sendto is non-blocking
         if (sendto(sock, &message, length, 0,
-                &proxyAddress, proxyAddressSize) != length) {
+                &proxyAddress, proxyAddressSize) != (ssize_t) length) {
             syserr("partial / failed sendto");
+        }
+    }
+}
+
+void RadioClient::receiveData() {
+    int sock = broadcastSocket.getSockNumber();
+    ssize_t recvLength;
+    struct message message {};
+
+    while (!finish) {
+        recvLength = recvfrom(sock, &message, sizeof(message),
+                    0, &proxyAddress, &proxyAddressSize);
+        if (recvLength < 0) {
+            syserr("recvfrom");
+        }
+
+        message.type = ntohs(message.type);
+        message.length = ntohs(message.length);
+
+        if (message.type == 4) {
+            if (write(1, message.buffer, message.length) != message.length) {
+                syserr("write");
+            }
+        } else if (message.type == 6) {
+            if (write(2, message.buffer, message.length) != message.length) {
+                syserr("write");
+            }
         }
     }
 }
 
 void RadioClient::start() {
     broadcastSocket.openSocket(udpPort, host);
+    std::thread thread(&RadioClient::sendKeepAlive, this);
+    thread.detach(); // TODO: ??
+}
+
+static void handleSignal(__attribute__((unused)) int signal) {
+    finish = true;
+    // TODO: close sockets itp
+    exit(0);
 }
 
 int main(int argc, char **argv) {
+    std::signal(SIGINT, handleSignal);
     RadioClient radioClient(argc, argv);
     std::cout << "JOL" << std::endl;
 }
