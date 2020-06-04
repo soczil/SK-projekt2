@@ -5,6 +5,7 @@
 #include <regex>
 #include <arpa/inet.h>
 #include <csignal>
+#include <thread>
 #include "radio-proxy.h"
 #include "err.h"
 
@@ -109,10 +110,11 @@ void RadioProxy::writeToClients(int type, char *buffer, size_t size) {
     struct message message {};
     struct sockaddr *address;
 
-    message.type = type;
-    message.length = size;
+    message.type = htons(type);
+    message.length = htons(size);
     std::memcpy(message.buffer, buffer, size);
 
+    mutex.lock();
     for (auto it = clients.begin(); it != clients.end();) {
         if ((*it).getTimeDifference() > clientsTimeout) {
             it = clients.erase(it);
@@ -126,6 +128,7 @@ void RadioProxy::writeToClients(int type, char *buffer, size_t size) {
             it++;
         }
     }
+    mutex.unlock();
 }
 
 void RadioProxy::writeData(char *buffer, size_t size) {
@@ -210,9 +213,8 @@ void RadioProxy::readWithoutMetadata(char *buffer, std::pair<int, int> &restOfCo
 }
 
 bool RadioProxy::readBlock(int limit, int &position, char *buffer,
-                           ssize_t &recvLength, bool regularData) {
+                           ssize_t &recvLength, bool regularData, char *dataBuffer) {
     int dataPosition = 0;
-    char dataBuffer[BUFFER_SIZE];
 
     for (int i = 0; i < limit; i++) {
         if (position == recvLength) {
@@ -252,9 +254,10 @@ void RadioProxy::readWithMetadata(char *buffer, int metaInt,
                                   std::pair<int, int> &restOfContent) {
     int position = restOfContent.first, metaLength;
     ssize_t recvLength = restOfContent.first + restOfContent.second;
+    char dataBuffer[BUFFER_SIZE];
 
     while (!finish) {
-        if (!readBlock(metaInt, position, buffer, recvLength, true)) {
+        if (!readBlock(metaInt, position, buffer, recvLength, true, dataBuffer)) {
             return;
         }
 
@@ -268,7 +271,7 @@ void RadioProxy::readWithMetadata(char *buffer, int metaInt,
         metaLength = (int) (buffer[position] * 16);
         position++;
 
-        if (!readBlock(metaLength, position, buffer, recvLength, false)) {
+        if (!readBlock(metaLength, position, buffer, recvLength, false, dataBuffer)) {
             return;
         }
     }
@@ -321,6 +324,8 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
     int sock = udpSocket.getSockNumber();
     struct message message {};
     ssize_t sendLength;
+
+    mutex.lock();
     int position = clientLookup(clientAddress);
 
     if (position == -1) {
@@ -338,9 +343,11 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
     }
 
     clients[position].setLastVisit(time(nullptr));
+    mutex.unlock();
 }
 
 void RadioProxy::keepaliveMessage(struct sockaddr *clientAddress) {
+    mutex.lock();
     int position = clientLookup(clientAddress);
 
     if (position == -1) {
@@ -348,6 +355,7 @@ void RadioProxy::keepaliveMessage(struct sockaddr *clientAddress) {
     }
 
     clients[position].setLastVisit(time(nullptr));
+    mutex.unlock();
 }
 
 void RadioProxy::handleClients() {
@@ -375,10 +383,10 @@ void RadioProxy::handleClients() {
         }
 
         if (message.type == 1) { // DISCOVER
-            std::cout << "DISCOVER" << std::endl; // TODO: remove
+            std::cerr << "DISCOVER" << std::endl; // TODO: remove
             discoverMessage(&clientAddress, addressSize);
         } else if (message.type == 3) { // KEEPALIVE
-            std::cout << "KEEPALIVE" << std::endl; // TODO: remove
+            std::cerr << "KEEPALIVE" << std::endl; // TODO: remove
             keepaliveMessage(&clientAddress);
         } else {
             //std::cout << "POMIJAM" << std::endl; // TODO: remove
@@ -389,7 +397,10 @@ void RadioProxy::handleClients() {
 
 void RadioProxy::start() {
     connect();
-    //handleClients();
+    if (proxy) {
+        std::thread thread(&RadioProxy::handleClients, this);
+        thread.detach();
+    }
     sendRequest();
     readResponse();
     disconnect();

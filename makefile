@@ -25,7 +25,7 @@ radio-client: radio-client.o err.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 radio-proxy: radio-proxy.o socket.o client.o err.o
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -pthread -o $@ $^
 
 .PHONY: clean
 

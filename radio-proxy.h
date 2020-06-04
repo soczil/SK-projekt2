@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <utility>
+#include <mutex>
 #include "socket.h"
 #include "client.h"
 #include "message.h"
@@ -22,12 +23,13 @@ private:
     UDPSocket udpSocket;
     std::vector<Client> clients;
     std::string radioName;
+    std::mutex mutex;
 
     bool readHeader(char *, int &, std::pair<int, int> &);
     static bool correctHeader(std::vector<char> &, int &);
     void readWithoutMetadata(char *, std::pair<int, int>&);
     void readWithMetadata(char *, int, std::pair<int, int>&);
-    bool readBlock(int, int &, char *, ssize_t &, bool);
+    bool readBlock(int, int &, char *, ssize_t &, bool, char *);
     void discoverMessage(struct sockaddr *, socklen_t);
     void keepaliveMessage(struct sockaddr *);
     int clientLookup(struct sockaddr *);

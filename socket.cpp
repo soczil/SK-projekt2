@@ -84,19 +84,19 @@ UDPSocket::UDPSocket() = default;
 
 void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
     int sock;
-    struct timeval tv;
-
-    tv.tv_sec = 2;
-    tv.tv_usec = 0;
+    //struct timeval tv;
+//
+//    tv.tv_sec = 2;
+//    tv.tv_usec = 0;
 
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock < 0) {
         syserr("socket");
     }
 
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-        syserr("socketopt");
-    }
+//    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+//        syserr("socketopt");
+//    }
 
     if (multiAddress != nullptr) {
         std::cout << "MULTI JOL" << std::endl;
