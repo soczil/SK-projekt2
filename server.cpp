@@ -1,4 +1,5 @@
 #include <cstring>
+#include <netinet/in.h>
 #include "server.h"
 
 Server::Server(struct sockaddr *address, socklen_t addressSize, std::string name) {
@@ -14,7 +15,9 @@ Server::Server(const Server &server) {
     this->lastMessage = server.lastMessage;
 }
 
-Server::Server() = default;
+Server::Server() {
+    std::memset(&address, 0, sizeof(address));
+};
 
 struct sockaddr *Server::getPtrToAddress() {
     return &address;
@@ -26,4 +29,13 @@ socklen_t Server::getAddressSize() {
 
 std::string Server::getName() {
     return name;
+}
+
+bool Server::operator==(const Server &server) {
+    auto myAddress = (struct sockaddr_in *) &address;
+    auto otherAddress = (struct sockaddr_in *) &(server.address);
+
+    return (myAddress->sin_addr.s_addr == otherAddress->sin_addr.s_addr)
+           && (myAddress->sin_port == otherAddress->sin_port);
+
 }

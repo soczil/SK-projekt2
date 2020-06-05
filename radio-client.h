@@ -4,6 +4,7 @@
 #include <vector>
 #include "server.h"
 #include "socket.h"
+#include "telnet-screen.h"
 
 class RadioClient {
 private:
@@ -14,13 +15,21 @@ private:
     BroadcastSocket broadcastSocket;
     TCPSocket tcpSocket;
     int telnetSock;
+    TelnetScreen telnetScreen;
+    bool receive = true;
+    std::mutex protector;
 
-    void sendDiscover();
-    void receiveIam(struct sockaddr *, socklen_t, struct message *);
+    void sendDiscover(struct sockaddr *);
+    void handleIam(struct sockaddr *, socklen_t, struct message *);
     void sendKeepAlive();
     void receiveData();
     int serverLookup(struct sockaddr *);
     void menageTelnet(int);
+    bool sameAddresses(struct sockaddr *, struct sockaddr *);
+    void keyUpClicked();
+    void keyDownClicked();
+    void enterClicked(std::thread &);
+    void updateOptions();
 
 public:
     RadioClient(int, char **);

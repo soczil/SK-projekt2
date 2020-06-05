@@ -21,7 +21,7 @@ socket.o: socket.cpp socket.h err.h
 client.o: client.cpp client.h err.h
 	$(CC) $(CFLAGS) -c $<
 
-telnet-screen.o: telnet-screen.cpp telnet-screen.h err.h
+telnet-screen.o: telnet-screen.cpp telnet-screen.h server.h err.h
 	$(CC) $(CFLAGS) -c $<
 
 err.o: err.c err.h

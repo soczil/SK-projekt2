@@ -5,16 +5,20 @@
 #include <chrono>
 #include <csignal>
 #include <cstring>
-#include <sstream>
 #include "radio-client.h"
 #include "message.h"
-#include "telnet-screen.h"
 #include "err.h"
 
-static int finish = false;
+bool finishTelnet = false;
+bool endConnection = false;
+bool isServer = false;
+
 std::vector<Server> servers;
 Server currentServer;
-bool isServer = false;
+
+const char *KEY_UP = "\033[A";
+const char *KEY_DOWN = "\033[B";
+const char *ENTER = "\r\0";
 
 static unsigned parseToUnsigned(char *numberPtr) {
     char *end;
@@ -35,7 +39,7 @@ RadioClient::RadioClient(int argc, char **argv) {
     while ((opt = getopt(argc, argv, "H:P:p:T:")) != -1) {
         switch (opt) {
             case 'H':
-                H = true;
+                H = true;// Na adres rozgłoszeniowy.
                 this->host = optarg;
                 break;
             case 'P':
@@ -62,13 +66,10 @@ RadioClient::RadioClient(int argc, char **argv) {
     }
 }
 
-void RadioClient::sendDiscover() {
+void RadioClient::sendDiscover(struct sockaddr *address) {
     int sock = broadcastSocket.getSockNumber();
     struct message message {};
     size_t length;
-    struct sockaddr *address;
-
-    address = (struct sockaddr *) broadcastSocket.getSockaddrPtr();
 
     message.type = htons(1);
     message.length = htons(0);
@@ -95,21 +96,30 @@ int RadioClient::serverLookup(struct sockaddr *seekedAddress) {
     return -1;
 }
 
-void RadioClient::receiveIam(struct sockaddr *address, socklen_t addressSize,
+void RadioClient::updateOptions() {
+    size_t position = telnetScreen.getPosition();
+    size_t options = telnetScreen.getOptions();
+
+    if (position == options - 1) {
+        // Wskazujemy na 'Koniec'.
+        telnetScreen.setPosition(position + 1);
+    }
+
+    telnetScreen.setOptions(options + 1);
+}
+
+void RadioClient::handleIam(struct sockaddr *address, socklen_t addressSize,
                              struct message *message) {
     std::string name(message->buffer);
     int position = serverLookup(address);
 
     if (position == -1) {
         Server server(address, addressSize, name);
+        protector.lock();
         servers.push_back(server);
-        position = servers.size() - 1;
-    }
-    // TODO: sprawdzic czy mamy serwer
-    if (!isServer) {
-        currentServer = servers[position];
-        std::thread thread(&RadioClient::sendKeepAlive, this);
-        thread.detach();
+        updateOptions();
+        telnetScreen.render(telnetSock, servers);
+        protector.unlock();
     }
 }
 
@@ -125,7 +135,7 @@ void RadioClient::sendKeepAlive() {
     message.length = htons(0);
 
     length = sizeof(message);
-    while (!finish) {
+    while (!endConnection) {
         std::this_thread::sleep_for(std::chrono::milliseconds(3500));
         // TODO: check if sendto is non-blocking
         if (sendto(sock, &message, length, 0,
@@ -142,12 +152,15 @@ void RadioClient::receiveData() {
     socklen_t addressSize;
     struct message message {};
 
-    while (!finish) {
+    while (receive) {
         std::memset(&address, 0, sizeof(struct sockaddr));
         addressSize = sizeof(address);
         recvLength = recvfrom(sock, &message, sizeof(message),
                     0, &address, &addressSize);
         if (recvLength < 0) {
+            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                continue;
+            }
             syserr("recvfrom");
         }
 
@@ -155,72 +168,126 @@ void RadioClient::receiveData() {
         message.length = ntohs(message.length);
 
         if (message.type == 2) {
-            receiveIam(&address, addressSize, &message);
-        } else if (message.type == 4) {
-            if (write(1, message.buffer, message.length) != message.length) {
-                syserr("write");
-            }
-        } else if (message.type == 6) {
-            if (write(2, message.buffer, message.length) != message.length) {
-                syserr("write");
+            std::cout << inet_ntoa(((struct sockaddr_in *) &address)->sin_addr) << std::endl;
+            handleIam(&address, addressSize, &message);
+        } else if (sameAddresses(&address, currentServer.getPtrToAddress())) {
+            if (message.type == 4) {
+                if (write(1, message.buffer, message.length) != message.length) {
+                    syserr("write");
+                }
+            } else if (message.type == 6) {
+                if (write(2, message.buffer, message.length) != message.length) {
+                    syserr("write");
+                }
             }
         }
     }
 }
 
+void RadioClient::keyUpClicked() {
+    size_t position = telnetScreen.getPosition();
 
-bool finishTelnet = false;
+    if (position != 0) {
+        telnetScreen.setPosition(position - 1);
+    }
+}
 
-const char *KEY_UP = "\033[A";
-const char *KEY_DOWN = "\033[B";
-const char *ENTER = "\r\0";
+void RadioClient::keyDownClicked() {
+    size_t position = telnetScreen.getPosition();
+    size_t options = telnetScreen.getOptions();
+
+    if (position != options - 1) {
+        telnetScreen.setPosition(position + 1);
+    }
+}
+
+void RadioClient::enterClicked(std::thread &keepAlive) {
+    size_t position = telnetScreen.getPosition();
+    size_t options = telnetScreen.getOptions();
+
+    if (position == 0) {
+        // Szukaj pośredników.
+        sendDiscover((struct sockaddr *) broadcastSocket.getSockaddrPtr());
+    } else if (position == options - 1) {
+        // Koniec.
+        finishTelnet = true;
+        endConnection = true;
+        receive = false;
+    } else {
+        // Wybrano radio.
+        if (isServer) {
+            // Jakieś radio gra, więc trzeba je zatrzymać.
+            endConnection = true;
+            keepAlive.join();
+            memset(currentServer.getPtrToAddress(), 0, sizeof(struct sockaddr));
+        }
+
+        isServer = true;
+        currentServer = servers[position - 1];
+        sendDiscover(currentServer.getPtrToAddress());
+        keepAlive = std::thread(&RadioClient::sendKeepAlive, this);
+    }
+}
 
 void RadioClient::menageTelnet(int sock) {
     char buffer[64];
-    TelnetScreen telnetScreen;
-    int optionPosition, optionsNumber;
 
     if ((this->telnetSock = accept(sock, (struct sockaddr *) 0,
                 (socklen_t *) 0)) < 0) {
         syserr("accept");
     }
 
+    telnetScreen.setPosition(0);
+    telnetScreen.setOptions(2);
     telnetScreen.prepare(telnetSock);
+
+    std::thread receivingThread(&RadioClient::receiveData, this);
+    std::thread keepAliveThread;
+
     while (!finishTelnet) {
-        telnetScreen.render(telnetSock);
+        protector.lock();
+        telnetScreen.render(telnetSock, servers);
+        protector.unlock();
 
         memset(buffer, 0, 64);
         if (read(telnetSock, buffer, 64) < 0) {
             syserr("read");
         }
 
-        optionPosition = telnetScreen.getPosition();
-        optionsNumber = telnetScreen.getOptions();
+        protector.lock();
         if (strcmp(buffer, KEY_UP) == 0) {
-            optionPosition = (optionPosition != 0) ? (optionPosition - 1) : optionPosition;
-            std::cout << "JOOOOL" << std::endl;
-        }else if (strcmp(buffer, KEY_DOWN) == 0) {
-            optionPosition = (optionPosition != optionsNumber - 1) ? (optionPosition + 1) : optionPosition;
-            std::cout << "JOOOOL" << std::endl;
+            keyUpClicked();
+        } else if (strcmp(buffer, KEY_DOWN) == 0) {
+            keyDownClicked();
         } else if (strcmp(buffer, ENTER) == 0) {
-            std::cout << "ENTER" << std::endl;
+            enterClicked(keepAliveThread);
         }
-        telnetScreen.setPosition(optionPosition);
+        protector.unlock();
     }
+
+    receive = false;
+    keepAliveThread.join();
+    receivingThread.join();
+    servers.clear();
+}
+
+bool RadioClient::sameAddresses(struct sockaddr *x, struct sockaddr *y) {
+    auto xIn = (struct sockaddr_in *) x;
+    auto yIn = (struct sockaddr_in *) y;
+
+    return ((xIn->sin_addr.s_addr == yIn->sin_addr.s_addr)
+            && (xIn->sin_port == yIn->sin_port));
 }
 
 void RadioClient::start() {
     broadcastSocket.openSocket(udpPort, host);
     tcpSocket.openSocketForTelnet(tcpPort);
     menageTelnet(tcpSocket.getSockNumber());
-//    sendDiscover();
-//    receiveData();
-//    servers.clear();
+    servers.clear();
     broadcastSocket.closeSocket();
 }
 
 static void handleSignal(__attribute__((unused)) int signal) {
-    finish = true;
     finishTelnet = true;
     // TODO: close sockets itp
     exit(0);

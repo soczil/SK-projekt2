@@ -379,9 +379,12 @@ void RadioProxy::handleClients() {
         std::memset(&clientAddress, 0, sizeof(struct sockaddr));
         recvLength = recvfrom(sock, &message,  sizeof(struct message), 0,
                         &clientAddress, &addressSize);
-        if ((recvLength < 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK)) {
+        if (recvLength < 0) {
+            if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                continue;
+            }
             syserr("recvfrom");
-            break;
+            break; // TODO: remove
         }
 
         message.type = ntohs(message.type);

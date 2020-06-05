@@ -1,6 +1,8 @@
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+#include <vector>
+#include "server.h"
 #include "err.h"
 #include "telnet-screen.h"
 
@@ -17,11 +19,11 @@ int TelnetScreen::getPosition() {
     return position;
 }
 
-void TelnetScreen::setOptions(int value) {
+void TelnetScreen::setOptions(size_t value) {
     this->options = value;
 }
 
-void TelnetScreen::setPosition(int value) {
+void TelnetScreen::setPosition(size_t value) {
     this->position = value;
 }
 
@@ -31,24 +33,33 @@ void TelnetScreen::prepare(int sock) {
     }
 }
 
-void TelnetScreen::render(int sock) {
+void TelnetScreen::render(int sock, std::vector<Server> &servers) {
     std::string buffer;
-    std::ostringstream ss;
+    std::ostringstream os;
 
-    ss << CLEAR_SCREEN;
+    os << CLEAR_SCREEN;
     if (position == 0) {
-        ss << COLOR << SEARCH << RESET;
+        os << COLOR << SEARCH << RESET;
     } else {
-        ss << SEARCH;
+        os << SEARCH;
+    }
+
+    for (size_t i = 0; i < servers.size(); i++) {
+        if (position == i + 1) {
+            os << COLOR << servers[i].getName() << "\r\n" << RESET;
+        } else {
+            os << servers[i].getName() << "\r\n";
+        }
     }
 
     if (position == (options - 1)) {
-        ss << COLOR << END << RESET;
+        os << COLOR << END << RESET;
     } else {
-        ss << END;
+        os << END;
     }
 
-    buffer = ss.str();
+    buffer = os.str();
+
     if (write(sock, buffer.c_str(), buffer.length()) != (ssize_t) buffer.length()) {
         syserr("write");
     }
