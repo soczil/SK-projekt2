@@ -11,12 +11,16 @@ TelnetScreen::TelnetScreen() {
     this->position = 0;
 }
 
-int TelnetScreen::getOptions() {
+size_t TelnetScreen::getOptions() {
     return options;
 }
 
-int TelnetScreen::getPosition() {
+size_t TelnetScreen::getPosition() {
     return position;
+}
+
+size_t TelnetScreen::getPlaying() {
+    return playing;
 }
 
 void TelnetScreen::setOptions(size_t value) {
@@ -25,6 +29,10 @@ void TelnetScreen::setOptions(size_t value) {
 
 void TelnetScreen::setPosition(size_t value) {
     this->position = value;
+}
+
+void TelnetScreen::setPlaying(size_t value) {
+    this->playing = value;
 }
 
 void TelnetScreen::prepare(int sock) {
@@ -36,6 +44,7 @@ void TelnetScreen::prepare(int sock) {
 void TelnetScreen::render(int sock, std::vector<Server> &servers) {
     std::string buffer;
     std::ostringstream os;
+    std::string server;
 
     os << CLEAR_SCREEN;
     if (position == 0) {
@@ -45,10 +54,16 @@ void TelnetScreen::render(int sock, std::vector<Server> &servers) {
     }
 
     for (size_t i = 0; i < servers.size(); i++) {
-        if (position == i + 1) {
-            os << COLOR << servers[i].getName() << "\r\n" << RESET;
+        if (i == playing) {
+            server = servers[i].getName() + " *";
         } else {
-            os << servers[i].getName() << "\r\n";
+            server = servers[i].getName();
+        }
+
+        if (position == i + 1) {
+            os << COLOR << server << "\r\n" << RESET;
+        } else {
+            os << server << "\r\n";
         }
     }
 

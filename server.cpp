@@ -12,7 +12,7 @@ Server::Server(const Server &server) {
     std::memcpy(&(this->address), &(server.address), server.addressSize);
     this->addressSize = server.addressSize;
     this->name = server.name;
-    this->lastMessage = server.lastMessage;
+    this->lastMessageTime = server.lastMessageTime;
 }
 
 Server::Server() {
@@ -31,11 +31,10 @@ std::string Server::getName() {
     return name;
 }
 
-bool Server::operator==(const Server &server) {
-    auto myAddress = (struct sockaddr_in *) &address;
-    auto otherAddress = (struct sockaddr_in *) &(server.address);
+void Server::updateTime(time_t value) {
+    this->lastMessageTime = value;
+}
 
-    return (myAddress->sin_addr.s_addr == otherAddress->sin_addr.s_addr)
-           && (myAddress->sin_port == otherAddress->sin_port);
-
+unsigned Server::getTimeDifference() {
+    return (time(nullptr) - lastMessageTime);
 }

@@ -13,13 +13,16 @@ private:
     const char *END = "Koniec\r\n";
     size_t options;
     size_t position;
+    size_t playing;
 
 public:
     TelnetScreen();
-    int getOptions();
-    int getPosition();
+    size_t getOptions();
+    size_t getPosition();
+    size_t getPlaying();
     void setOptions(size_t);
     void setPosition(size_t);
+    void setPlaying(size_t);
     void prepare(int);
     void render(int, std::vector<Server> &);
 };

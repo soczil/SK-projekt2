@@ -306,7 +306,6 @@ void RadioProxy::readResponse() {
 }
 
 int RadioProxy::clientLookup(struct sockaddr *seekedAddress) {
-    // TODO: mutex
     auto *seekedIn = (struct sockaddr_in *) seekedAddress;
     struct sockaddr_in *clientIn;
 
