@@ -8,6 +8,7 @@
 #include <sstream>
 #include "radio-client.h"
 #include "message.h"
+#include "telnet-screen.h"
 #include "err.h"
 
 static int finish = false;
@@ -167,66 +168,34 @@ void RadioClient::receiveData() {
     }
 }
 
-int telnetSock = 0;
+
 bool finishTelnet = false;
 
 const char *KEY_UP = "\033[A";
 const char *KEY_DOWN = "\033[B";
 const char *ENTER = "\r\0";
-const char *RESET = "\u001b[0m";
-const char *COLOR = "\033[31;7m";
-const char *CLEAR_SCREEN = "\u001B[2J";
-const char *SEARCH = "Szukaj pośrednika\r\n";
-const char *END = "Koniec\r\n";
-
-int optionPosition = 0;
-int optionsNumber = 2;
-
-void refreshScreen() {
-    std::string buffer;
-    std::stringstream ss;
-
-    ss << CLEAR_SCREEN;
-    if (optionPosition == 0) {
-        ss << COLOR << SEARCH << RESET;
-    } else {
-        ss << SEARCH;
-    }
-
-    if (optionPosition == (optionsNumber - 1)) {
-        ss << COLOR << END << RESET;
-    } else {
-        ss << END;
-    }
-
-    buffer = ss.str();
-    if (write(telnetSock, buffer.c_str(), buffer.length()) != (ssize_t) buffer.length()) {
-        syserr("write");
-    }
-}
 
 void RadioClient::menageTelnet(int sock) {
     char buffer[64];
-    std::stringstream ss;
+    TelnetScreen telnetScreen;
+    int optionPosition, optionsNumber;
 
-    if ((telnetSock = accept(sock, (struct sockaddr *) 0,
+    if ((this->telnetSock = accept(sock, (struct sockaddr *) 0,
                 (socklen_t *) 0)) < 0) {
         syserr("accept");
     }
 
-    if ((write(telnetSock,"\377\375\042\377\373\001",6) != 6)
-        || (write(telnetSock, "\u001B[2J", 4) != 4)) {
-        syserr("write");
-    }
-
+    telnetScreen.prepare(telnetSock);
     while (!finishTelnet) {
-        refreshScreen();
+        telnetScreen.render(telnetSock);
 
         memset(buffer, 0, 64);
         if (read(telnetSock, buffer, 64) < 0) {
             syserr("read");
         }
 
+        optionPosition = telnetScreen.getPosition();
+        optionsNumber = telnetScreen.getOptions();
         if (strcmp(buffer, KEY_UP) == 0) {
             optionPosition = (optionPosition != 0) ? (optionPosition - 1) : optionPosition;
             std::cout << "JOOOOL" << std::endl;
@@ -236,6 +205,7 @@ void RadioClient::menageTelnet(int sock) {
         } else if (strcmp(buffer, ENTER) == 0) {
             std::cout << "ENTER" << std::endl;
         }
+        telnetScreen.setPosition(optionPosition);
     }
 }
 

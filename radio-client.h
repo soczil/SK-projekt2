@@ -13,6 +13,7 @@ private:
     unsigned timeout;
     BroadcastSocket broadcastSocket;
     TCPSocket tcpSocket;
+    int telnetSock;
 
     void sendDiscover();
     void receiveIam(struct sockaddr *, socklen_t, struct message *);
