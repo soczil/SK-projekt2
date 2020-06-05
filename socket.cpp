@@ -70,10 +70,18 @@ void TCPSocket::openSocket(char *host, char *port, unsigned timeout) {
 
 void TCPSocket::openSocketForTelnet(in_port_t port) {
     int sock;
+    struct timeval tv;
+
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         syserr("socket");
+    }
+
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        syserr("socketopt");
     }
 
     sockaddrIn.sin_family = AF_INET;
@@ -105,6 +113,9 @@ ssize_t TCPSocket::readFromSocket(char *buffer, size_t size) {
     memset(buffer, 0, size);
     recvLength = read(this->getSockNumber(), buffer, size);
     if (recvLength < 0) {
+        if (errno == EINTR) {
+            return 0;
+        }
         syserr("read");
     }
 
@@ -130,7 +141,6 @@ void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
     }
 
     if (multiAddress != nullptr) {
-        std::cout << "MULTI JOL" << std::endl;
         ipMreq.imr_interface.s_addr = htonl(INADDR_ANY);
         if (inet_aton(multiAddress, &ipMreq.imr_multiaddr) == 0) {
             syserr("inet_aton - invalid multicast address");
@@ -152,6 +162,19 @@ void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
     }
 
     this->setSockNumber(sock);
+}
+
+void UDPSocket::closeSocket(const char *multiAddress) {
+    int sock = getSockNumber();
+
+    if (multiAddress != nullptr) {
+        if (setsockopt(sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+                    (void *) &ipMreq, sizeof(ipMreq))) {
+            syserr("setsockopt");
+        }
+    }
+
+    Socket::closeSocket();
 }
 
 BroadcastSocket::BroadcastSocket() = default;

@@ -37,6 +37,7 @@ private:
 public:
     UDPSocket();
     void openSocket(in_port_t, char *);
+    void closeSocket(const char *);
 };
 
 class BroadcastSocket : public Socket {

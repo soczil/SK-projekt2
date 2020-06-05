@@ -16,6 +16,7 @@ public:
     Server();
     Server(struct sockaddr *, socklen_t, std::string);
     Server(const Server &server);
+    bool operator==(const Server &server);
     struct sockaddr *getPtrToAddress();
     socklen_t getAddressSize();
     std::string getName();

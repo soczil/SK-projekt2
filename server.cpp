@@ -38,3 +38,11 @@ void Server::updateTime(time_t value) {
 unsigned Server::getTimeDifference() {
     return (time(nullptr) - lastMessageTime);
 }
+
+bool Server::operator==(const Server &server) {
+    auto myAddress = (struct sockaddr_in *) &address;
+    auto otherAddress = (struct sockaddr_in *) &(server.address);
+
+    return (myAddress->sin_addr.s_addr == otherAddress->sin_addr.s_addr)
+           && (myAddress->sin_port == otherAddress->sin_port);
+}

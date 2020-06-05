@@ -11,7 +11,9 @@
 
 bool finishTelnet = false;
 bool endConnection = false;
+bool finish = false;
 bool isServer = false;
+bool receive = true;
 
 std::vector<Server> servers;
 Server currentServer;
@@ -81,14 +83,17 @@ void RadioClient::sendDiscover(struct sockaddr *address) {
     }
 }
 
-int RadioClient::serverLookup(struct sockaddr *seekedAddress) {
-    auto *seekedIn = (struct sockaddr_in *) seekedAddress;
-    struct sockaddr_in *clientIn;
+bool RadioClient::sameAddresses(struct sockaddr *x, struct sockaddr *y) {
+    auto xIn = (struct sockaddr_in *) x;
+    auto yIn = (struct sockaddr_in *) y;
 
+    return ((xIn->sin_addr.s_addr == yIn->sin_addr.s_addr)
+            && (xIn->sin_port == yIn->sin_port));
+}
+
+int RadioClient::serverLookup(struct sockaddr *seekedAddress) {
     for (size_t i = 0; i < servers.size(); i++) {
-        clientIn = (struct sockaddr_in *) servers[i].getPtrToAddress();
-        if (seekedIn->sin_addr.s_addr == clientIn->sin_addr.s_addr
-            && seekedIn->sin_port == clientIn->sin_port) {
+        if (sameAddresses(seekedAddress, servers[i].getPtrToAddress())) {
             return i;
         }
     }
@@ -111,11 +116,12 @@ void RadioClient::updateOptions() {
 void RadioClient::handleIam(struct sockaddr *address, socklen_t addressSize,
                              struct message *message) {
     std::string name(message->buffer);
+
+    protector.lock();
     int position = serverLookup(address);
 
     if (position == -1) {
         Server server(address, addressSize, name);
-        protector.lock();
         servers.push_back(server);
         updateOptions();
         telnetScreen.render(telnetSock, servers);
@@ -146,15 +152,6 @@ void RadioClient::sendKeepAlive() {
         }
     }
 }
-
-bool RadioClient::sameAddresses(struct sockaddr *x, struct sockaddr *y) {
-    auto xIn = (struct sockaddr_in *) x;
-    auto yIn = (struct sockaddr_in *) y;
-
-    return ((xIn->sin_addr.s_addr == yIn->sin_addr.s_addr)
-            && (xIn->sin_port == yIn->sin_port));
-}
-
 
 void RadioClient::receiveData() {
     int sock = broadcastSocket.getSockNumber();
@@ -222,19 +219,30 @@ void RadioClient::enterClicked(std::thread &keepAlive) {
         sendDiscover((struct sockaddr *) broadcastSocket.getSockaddrPtr());
     } else if (position == options - 1) {
         // Koniec.
-        keepAlive.detach();
+        if (isServer) {
+            keepAlive.detach();
+        }
         endConnection = true;
         finishTelnet = true;
         receive = false;
+        isServer = false;
     } else {
         // Wybrano radio.
+        if (currentServer == servers[position - 1]) {
+            // Kliknięto w radio, które obecnie gra.
+            return;
+        }
+
         if (isServer) {
             // Jakieś radio gra, więc trzeba je zatrzymać.
             endConnection = true;
             keepAlive.join();
+            isServer = false;
             memset(currentServer.getPtrToAddress(), 0, sizeof(struct sockaddr));
         }
 
+        // Uruchamiamy nowe radio.
+        endConnection = false;
         isServer = true;
         currentServer = servers[position - 1];
         telnetScreen.setPlaying(position - 1);
@@ -246,9 +254,17 @@ void RadioClient::enterClicked(std::thread &keepAlive) {
 void RadioClient::menageTelnet(int sock) {
     char buffer[64];
 
-    if ((this->telnetSock = accept(sock, (struct sockaddr *) 0,
-                (socklen_t *) 0)) < 0) {
-        syserr("accept");
+    while (true) {
+        if ((this->telnetSock = accept(sock, (struct sockaddr *) 0,
+                                       (socklen_t *) 0)) < 0) {
+            if (errno == EINTR) {
+                return;
+            } else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                continue;
+            }
+            syserr("accept");
+        }
+        break;
     }
 
     telnetScreen.setPosition(0);
@@ -265,6 +281,11 @@ void RadioClient::menageTelnet(int sock) {
 
         memset(buffer, 0, 64);
         if (read(telnetSock, buffer, 64) < 0) {
+            if (errno == EINTR) {
+                break;
+            } else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                continue;
+            }
             syserr("read");
         }
 
@@ -279,28 +300,40 @@ void RadioClient::menageTelnet(int sock) {
         protector.unlock();
     }
 
+    endConnection = true;
     receive = false;
-    keepAliveThread.join();
+    if (isServer) {
+        // TODO: Tego chyba nie potrzeba bo wcześniej już go zdetachuje.
+        keepAliveThread.join();
+    }
     receivingThread.join();
     servers.clear();
+
+    if (close(telnetSock) < 0) {
+        syserr("close");
+    }
 }
 
 void RadioClient::start() {
     broadcastSocket.openSocket(udpPort, host);
     tcpSocket.openSocketForTelnet(tcpPort);
-    menageTelnet(tcpSocket.getSockNumber());
-    servers.clear();
+
+    while (!finish) {
+        menageTelnet(tcpSocket.getSockNumber());
+    }
+
+    tcpSocket.closeSocket();
     broadcastSocket.closeSocket();
 }
 
 static void handleSignal(__attribute__((unused)) int signal) {
     finishTelnet = true;
-    // TODO: close sockets itp
-    exit(0);
+    finish = true;
 }
 
 int main(int argc, char **argv) {
     std::signal(SIGINT, handleSignal);
     RadioClient radioClient(argc, argv);
     radioClient.start();
+    return 0;
 }

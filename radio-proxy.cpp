@@ -1,7 +1,6 @@
 #include <iostream>
 #include <unistd.h>
 #include <cstring>
-#include <sstream>
 #include <regex>
 #include <arpa/inet.h>
 #include <csignal>
@@ -90,6 +89,7 @@ void RadioProxy::connect() {
 
 void RadioProxy::disconnect() {
     tcpSocket.closeSocket();
+    udpSocket.closeSocket(multiAddress);
 }
 
 void RadioProxy::sendRequest() {
@@ -379,11 +379,15 @@ void RadioProxy::handleClients() {
         recvLength = recvfrom(sock, &message,  sizeof(struct message), 0,
                         &clientAddress, &addressSize);
         if (recvLength < 0) {
+            if (errno == EINTR) {
+                return;
+            }
+
             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
                 continue;
             }
+
             syserr("recvfrom");
-            break; // TODO: remove
         }
 
         message.type = ntohs(message.type);
@@ -414,15 +418,16 @@ void RadioProxy::start() {
     sendRequest();
     readResponse();
     disconnect();
+    clients.clear();
 }
 
 void static handleSigint(__attribute__((unused)) int signal) {
     finish = true;
-    exit(0);
 }
 
 int main(int argc, char *argv[]) {
     signal(SIGINT, handleSigint);
     RadioProxy radioProxy(argc, argv);
     radioProxy.start();
+    return 0;
 }

@@ -16,7 +16,6 @@ private:
     TCPSocket tcpSocket;
     int telnetSock;
     TelnetScreen telnetScreen;
-    bool receive = true;
     std::mutex protector;
 
     void sendDiscover(struct sockaddr *);
