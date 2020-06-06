@@ -97,14 +97,13 @@ void RadioProxy::sendRequest() {
 
     request << "GET " << resource << " HTTP/1.0\r\n";
     request << "Host: " << host << "\r\n";
-    request << "User-Agent: Casty\r\n";
+    //request << "User-Agent: Casty\r\n"; // TODO: SPRAWDZIC
     request << "Icy-MetaData: " << (metadata ? "1" : "0") << "\r\n\r\n";
 
     tcpSocket.writeToSocket(request.str());
 }
 
 void RadioProxy::writeToClients(int type, char *buffer, size_t size) {
-    // TODO: mutex
     int sock = udpSocket.getSockNumber();
     ssize_t sendLength;
     struct message message {};

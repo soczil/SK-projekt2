@@ -13,14 +13,51 @@ private:
     time_t lastMessageTime;
 
 public:
+    /**
+     * Konstruktor domyślny zeruje strukturę przechowującą adres.
+     */
     Server();
+
+    /**
+     * Podstawowy konstruktor tworzący serwer.
+     */
     Server(struct sockaddr *, socklen_t, std::string);
+
+    /**
+     * Konstruktor kopiujący.
+     */
     Server(const Server &server);
+
+    /**
+     * Przeciążanie operatora porównania.
+     */
     bool operator==(const Server &server);
+
+    /**
+     * Daje w wyniku wskaźnik na strukturę zawierającą adres serwera.
+     * @return
+     */
     struct sockaddr *getPtrToAddress();
+
+    /**
+     * Daje w wyniku rozmiar struktury z adresem serwera.
+     */
     socklen_t getAddressSize();
+
+    /**
+     * Daje w wyniku nazwę serwera.
+     */
     std::string getName();
+
+    /**
+     * Aktualizuje czas ostatniej wiadomości z danymi od serwera.
+     */
     void updateTime(time_t);
+
+    /**
+     * Daje w wyniku liczbę sekund, które upłynęły
+     * od ostatniej wiadomości od serwera.
+     */
     unsigned getTimeDifference();
 };
 
