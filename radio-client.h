@@ -11,7 +11,7 @@ private:
     char *host;
     in_port_t udpPort;
     in_port_t tcpPort;
-    unsigned timeout;
+    unsigned timeout = 5;
     BroadcastSocket broadcastSocket;
     TCPSocket tcpSocket;
     int telnetSock;
@@ -29,6 +29,8 @@ private:
     void keyDownClicked();
     void enterClicked(std::thread &);
     void updateOptions();
+    void controlTimeout(std::thread &);
+    void removeServer();
 
 public:
     RadioClient(int, char **);

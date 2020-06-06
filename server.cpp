@@ -17,6 +17,9 @@ Server::Server(const Server &server) {
 
 Server::Server() {
     std::memset(&address, 0, sizeof(address));
+    this->lastMessageTime = time(nullptr);
+    this->addressSize = sizeof(address);
+    this->name = "";
 };
 
 struct sockaddr *Server::getPtrToAddress() {

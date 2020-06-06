@@ -41,7 +41,8 @@ void TelnetScreen::prepare(int sock) {
     }
 }
 
-void TelnetScreen::render(int sock, std::vector<Server> &servers) {
+void TelnetScreen::render(int sock, std::vector<Server> &servers,
+                          std::vector<std::string> &metadata) {
     std::string buffer;
     std::ostringstream os;
     std::string server;
@@ -71,6 +72,10 @@ void TelnetScreen::render(int sock, std::vector<Server> &servers) {
         os << COLOR << END << RESET;
     } else {
         os << END;
+    }
+
+    for (auto &meta : metadata) {
+        os << meta << "\r\n";
     }
 
     buffer = os.str();

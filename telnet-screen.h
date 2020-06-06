@@ -24,7 +24,7 @@ public:
     void setPosition(size_t);
     void setPlaying(size_t);
     void prepare(int);
-    void render(int, std::vector<Server> &);
+    void render(int, std::vector<Server> &, std::vector<std::string> &);
 };
 
 #endif // _TELNET_SCREEN_
