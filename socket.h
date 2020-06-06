@@ -10,8 +10,11 @@ private:
 
 public:
     Socket();
+
     void closeSocket();
+
     int getSockNumber();
+
     void setSockNumber(int);
 };
 
@@ -24,8 +27,14 @@ private:
 public:
     TCPSocket();
     void openSocket(char *, char *, unsigned);
+
+    /**
+     * Otwiera gniazdo dla połączenia z telnetem.
+     */
     void openSocketForTelnet(in_port_t);
+
     void writeToSocket(const std::string&);
+
     ssize_t readFromSocket(char *, size_t size);
 };
 
@@ -36,7 +45,9 @@ private:
 
 public:
     UDPSocket();
+
     void openSocket(in_port_t, char *);
+
     void closeSocket(const char *);
 };
 
@@ -47,7 +58,9 @@ private:
 
 public:
     BroadcastSocket();
+
     void openSocket(in_port_t, char *);
+
     struct sockaddr_in *getSockaddrPtr();
 };
 

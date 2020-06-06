@@ -9,7 +9,7 @@
 #include "err.h"
 
 static bool finish = false;
-const int BUFFER_SIZE = 128;
+const int BUFFER_SIZE = 256;
 
 static unsigned parseToUnsigned(char *numberPtr) {
     char *end;

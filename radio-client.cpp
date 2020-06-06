@@ -160,6 +160,7 @@ void RadioClient::receiveData() {
     struct message message {};
 
     while (receive) {
+        std::memset(&message, 0, sizeof(struct message));
         std::memset(&address, 0, sizeof(struct sockaddr));
         addressSize = sizeof(address);
         recvLength = recvfrom(sock, &message, sizeof(message),
@@ -179,7 +180,9 @@ void RadioClient::receiveData() {
             handleIam(&address, addressSize, &message);
         } else if (sameAddresses(&address, currentServer.getPtrToAddress())) {
             // Aktualizuj czas ostatnich przysłanych danych.
+            protector.lock();
             currentServer.updateTime(time(nullptr));
+            protector.unlock();
             if (message.type == 4) {
                 if (write(1, message.buffer, message.length) != message.length) {
                     syserr("write");
@@ -239,7 +242,7 @@ void RadioClient::enterClicked(std::thread &keepAlive) {
             endConnection = true;
             keepAlive.join();
             isServer = false;
-            memset(currentServer.getPtrToAddress(), 0, sizeof(struct sockaddr));
+            std::memset(currentServer.getPtrToAddress(), 0, sizeof(struct sockaddr));
         }
 
         // Uruchamiamy nowe radio.
@@ -268,25 +271,21 @@ void RadioClient::removeServer() {
 }
 
 void RadioClient::controlTimeout(std::thread &keepAlive) {
-    bool locked = true;
     protector.lock();
     if (isServer && (currentServer.getTimeDifference() > timeout)) {
         removeServer();
         protector.unlock();
-        locked = false;
         endConnection = true;
         isServer = false;
         keepAlive.join();
-        memset(currentServer.getPtrToAddress(), 0, sizeof(struct sockaddr));
-    }
-
-    if (locked) {
+        std::memset(currentServer.getPtrToAddress(), 0, sizeof(struct sockaddr));
+    } else {
         protector.unlock();
     }
 }
 
 void RadioClient::menageTelnet(int sock) {
-    char buffer[64];
+    char buffer[128];
 
     while (true) {
         if ((this->telnetSock = accept(sock, (struct sockaddr *) 0,
@@ -314,8 +313,8 @@ void RadioClient::menageTelnet(int sock) {
         telnetScreen.render(telnetSock, servers, metadata);
         protector.unlock();
 
-        memset(buffer, 0, 64);
-        if (read(telnetSock, buffer, 64) < 0) {
+        std::memset(buffer, 0, 128);
+        if (read(telnetSock, buffer, 128) < 0) {
             if (errno == EINTR) {
                 break;
             } else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {

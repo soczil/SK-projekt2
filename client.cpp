@@ -2,7 +2,7 @@
 #include "client.h"
 
 Client::Client(struct sockaddr *newAddress) {
-    memcpy(&address, newAddress, sizeof(struct sockaddr));
+    std::memcpy(&address, newAddress, sizeof(struct sockaddr));
     lastVisit = time(nullptr);
 }
 

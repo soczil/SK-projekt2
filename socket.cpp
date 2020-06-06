@@ -6,8 +6,6 @@
 #include "socket.h"
 #include "err.h"
 
-#include <iostream> // TODO: remove
-
 Socket::Socket() {
     this->sock = 0;
 }
@@ -141,6 +139,7 @@ void UDPSocket::openSocket(in_port_t port, char *multiAddress) {
     }
 
     if (multiAddress != nullptr) {
+        // Podany został adres rozsyłania grupowego.
         ipMreq.imr_interface.s_addr = htonl(INADDR_ANY);
         if (inet_aton(multiAddress, &ipMreq.imr_multiaddr) == 0) {
             syserr("inet_aton - invalid multicast address");
@@ -168,6 +167,7 @@ void UDPSocket::closeSocket(const char *multiAddress) {
     int sock = getSockNumber();
 
     if (multiAddress != nullptr) {
+        // Odłączamy od grupy rozsyłania.
         if (setsockopt(sock, IPPROTO_IP, IP_DROP_MEMBERSHIP,
                     (void *) &ipMreq, sizeof(ipMreq))) {
             syserr("setsockopt");
