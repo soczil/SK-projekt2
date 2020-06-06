@@ -47,6 +47,7 @@ void TelnetScreen::render(int sock, std::vector<Server> &servers,
     std::ostringstream os;
     std::string server;
 
+    // Opcja 'Szukaj pośredników'.
     os << CLEAR_SCREEN;
     if (position == 0) {
         os << COLOR << SEARCH << RESET;
@@ -54,6 +55,7 @@ void TelnetScreen::render(int sock, std::vector<Server> &servers,
         os << SEARCH;
     }
 
+    // Dostępni pośrednicy.
     for (size_t i = 0; i < servers.size(); i++) {
         if (i == playing) {
             server = servers[i].getName() + " *";
@@ -68,12 +70,14 @@ void TelnetScreen::render(int sock, std::vector<Server> &servers,
         }
     }
 
+    // Opcja 'Koniec'.
     if (position == (options - 1)) {
         os << COLOR << END << RESET;
     } else {
         os << END;
     }
 
+    // Metadane.
     for (auto &meta : metadata) {
         os << meta << "\r\n";
     }
