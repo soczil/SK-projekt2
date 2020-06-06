@@ -58,9 +58,9 @@ void TelnetScreen::render(int sock, std::vector<Server> &servers,
     // Dostępni pośrednicy.
     for (size_t i = 0; i < servers.size(); i++) {
         if (i == playing) {
-            server = servers[i].getName() + " *";
+            server = "Pośrednik " + servers[i].getName() + " *";
         } else {
-            server = servers[i].getName();
+            server = "Pośrednik " + servers[i].getName();
         }
 
         if (position == i + 1) {
