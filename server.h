@@ -24,18 +24,17 @@ public:
     Server(struct sockaddr *, socklen_t, std::string);
 
     /**
-     * Konstruktor kopiujący.
+     * Przeciąża operator przypisania.
      */
-    Server(const Server &server);
+    Server& operator=(const Server &server);
 
     /**
-     * Przeciążanie operatora porównania.
+     * Przeciąża operator porównania.
      */
     bool operator==(const Server &server);
 
     /**
      * Daje w wyniku wskaźnik na strukturę zawierającą adres serwera.
-     * @return
      */
     struct sockaddr *getPtrToAddress();
 

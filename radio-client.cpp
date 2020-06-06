@@ -123,6 +123,7 @@ void RadioClient::handleIam(struct sockaddr *address, socklen_t addressSize,
     int position = serverLookup(address);
 
     if (position == -1) {
+        // Dodajemy nowy serwer.
         Server server(address, addressSize, name);
         servers.push_back(server);
         updateOptions();
@@ -165,6 +166,7 @@ void RadioClient::receiveData() {
                     0, &address, &addressSize);
         if (recvLength < 0) {
             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                // Wystąpił specjalnie ustawiony timeout.
                 continue;
             }
             syserr("recvfrom");
@@ -292,6 +294,7 @@ void RadioClient::menageTelnet(int sock) {
             if (errno == EINTR) {
                 return;
             } else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                // Wystąpił ustawiony timeout.
                 continue;
             }
             syserr("accept");
@@ -316,6 +319,7 @@ void RadioClient::menageTelnet(int sock) {
             if (errno == EINTR) {
                 break;
             } else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                // Wystąpił ustawiony timeout.
                 controlTimeout(keepAliveThread);
                 continue;
             }
@@ -333,6 +337,7 @@ void RadioClient::menageTelnet(int sock) {
         protector.unlock();
     }
 
+    // Kończymy połączenie.
     endConnection = true;
     receive = false;
     if (isServer) {

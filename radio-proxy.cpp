@@ -89,7 +89,10 @@ void RadioProxy::connect() {
 
 void RadioProxy::disconnect() {
     tcpSocket.closeSocket();
-    udpSocket.closeSocket(multiAddress);
+
+    if (proxy) {
+        udpSocket.closeSocket(multiAddress);
+    }
 }
 
 void RadioProxy::sendRequest() {
@@ -97,7 +100,6 @@ void RadioProxy::sendRequest() {
 
     request << "GET " << resource << " HTTP/1.0\r\n";
     request << "Host: " << host << "\r\n";
-    //request << "User-Agent: Casty\r\n"; // TODO: SPRAWDZIC
     request << "Icy-MetaData: " << (metadata ? "1" : "0") << "\r\n\r\n";
 
     tcpSocket.writeToSocket(request.str());
@@ -114,6 +116,7 @@ void RadioProxy::writeToClients(int type, char *buffer, size_t size) {
     std::memcpy(message.buffer, buffer, size);
 
     mutex.lock();
+    // Wyślij wiadomość do każdego klienta.
     for (auto it = clients.begin(); it != clients.end();) {
         if ((*it).getTimeDifference() > clientsTimeout) {
             it = clients.erase(it);
@@ -156,18 +159,21 @@ bool RadioProxy::correctHeader(std::vector<char> &header, int &metaInt) {
     const std::regex nameRegex("\r\nicy-name:(.+)\r\n", std::regex_constants::icase);
     auto newLine = std::find(header.begin(), header.end(), '\n');
 
+    // Sprawdź status odpowiedzi.
     if (!std::regex_match(header.begin(), newLine, correctStatus)) {
         std::string statusLine(header.begin(), newLine);
         std::cout << statusLine << std::endl;
         return false;
     }
 
+    // Wyciągnij informację o metaIncie.
     std::smatch sm;
     std::string headerString(header.begin(), header.end());
     if (std::regex_search(headerString, sm, metaIntRegex)) {
         metaInt = std::stoi(sm[1].str());
     }
 
+    // Wyciągnij nazwę radia.
     if (std::regex_search(headerString, sm, nameRegex)) {
         radioName = sm[1].str();
     } else {
@@ -191,6 +197,7 @@ bool RadioProxy::readHeader(char *buffer, int &metaInt, std::pair<int, int> &res
         header.insert(header.end(), buffer, buffer + recvLength);
     } while (std::search(header.begin(), header.end(), crlf, crlf + 4) == header.end());
 
+    // Znajdowanie pozycji końca headera w buforze.
     if ((contentStart = strstr(buffer, "\r\n\r\n")) != nullptr) {
         contentStart += 4;
     } else if ((contentStart = strstr(buffer, "\r\n")) != nullptr) {
@@ -199,8 +206,8 @@ bool RadioProxy::readHeader(char *buffer, int &metaInt, std::pair<int, int> &res
         contentStart += 1;
     }
 
-    restOfContent.first = contentStart - buffer;
-    restOfContent.second = recvLength - restOfContent.first;
+    restOfContent.first = contentStart - buffer; // Początek contentu.
+    restOfContent.second = recvLength - restOfContent.first; // Ile contentu w buforze.
 
     return correctHeader(header, metaInt);;
 }
@@ -263,10 +270,12 @@ void RadioProxy::readWithMetadata(char *buffer, int metaInt,
     char dataBuffer[BUFFER_SIZE];
 
     while (!finish) {
+        // Wczytaj porcję danych.
         if (!readBlock(metaInt, position, buffer, recvLength, true, dataBuffer)) {
             return;
         }
 
+        // Wczytaj rozmiar metadanych.
         if (position == recvLength) {
             recvLength = tcpSocket.readFromSocket(buffer, BUFFER_SIZE);
             if (recvLength == 0) {
@@ -277,6 +286,7 @@ void RadioProxy::readWithMetadata(char *buffer, int metaInt,
         metaLength = (int) (buffer[position] * 16);
         position++;
 
+        // Wczytaj metadane.
         if (!readBlock(metaLength, position, buffer, recvLength, false, dataBuffer)) {
             return;
         }
@@ -293,6 +303,7 @@ void RadioProxy::readResponse() {
     }
 
     if ((metaInt != -1) && !metadata) {
+        // Nie prosiliśmy serwera o metadane, a on chce nam je wysłać.
         fatal("server tries to send metadata");
     }
 
@@ -337,6 +348,7 @@ void RadioProxy::discoverMessage(struct sockaddr *clientAddress,
         addNewClient(clientAddress);
         position = clients.size() - 1;
 
+        // Odeślij komunikat IAM.
         message.type = htons(2);
         message.length = htons(radioName.length());
         std::memset(message.buffer, 0, BUFFER_SIZE);
@@ -383,6 +395,7 @@ void RadioProxy::handleClients() {
             }
 
             if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+                // Wystąpił specjalnie ustawiony timeout.
                 continue;
             }
 
@@ -396,13 +409,10 @@ void RadioProxy::handleClients() {
         }
 
         if (message.type == 1) { // DISCOVER
-            std::cerr << "DISCOVER" << std::endl; // TODO: remove
             discoverMessage(&clientAddress, addressSize);
         } else if (message.type == 3) { // KEEPALIVE
-            std::cerr << "KEEPALIVE" << std::endl; // TODO: remove
             keepaliveMessage(&clientAddress);
         } else {
-            //std::cout << "POMIJAM" << std::endl; // TODO: remove
             continue;
         }
     }

@@ -8,11 +8,12 @@ Server::Server(struct sockaddr *address, socklen_t addressSize, std::string name
     this->name = name;
 }
 
-Server::Server(const Server &server) {
+Server& Server::operator=(const Server &server) {
     std::memcpy(&(this->address), &(server.address), server.addressSize);
     this->addressSize = server.addressSize;
     this->name = server.name;
     this->lastMessageTime = server.lastMessageTime;
+    return *this;
 }
 
 Server::Server() {
